@@ -159,6 +159,14 @@ export class GcodeSender {
   }
 
   //--------------------------------------------------
+  // move gantry: WCS current 0,0,?
+  //  Move to the currently defined G54 position.
+  //--------------------------------------------------
+  moveGantryWCSHomeXY() {
+    this.sendMessage('command', 'gcode', 'G54 G0 G90 X0 Y0');
+  }
+
+  //--------------------------------------------------
   // move gantry: z probe position
   //  Move to the currently defined z probe position.
   //  This is a noop, but is implemented in the grbl
