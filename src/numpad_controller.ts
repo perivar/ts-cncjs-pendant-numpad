@@ -8,7 +8,6 @@
 import { EventEmitter } from 'events';
 import hid from 'node-hid';
 import log from 'npmlog';
-import serialport from 'serialport';
 
 import { Options } from './console';
 
@@ -17,6 +16,7 @@ import { Options } from './console';
 //------------------------------------------------------------------------------
 const LOGPREFIX = 'NUMPAD  '; // keep at 9 digits for consistency
 
+/*
 const controllerMapping: Record<number, string> = {
   42: 'KEYCODE_BACKSPACE',
   83: 'KEYCODE_NUM_LOCK',
@@ -37,6 +37,7 @@ const controllerMapping: Record<number, string> = {
   98: 'KEYCODE_NUM0',
   99: 'KEYCODE_DOT',
 };
+*/
 
 export interface KeyboardEvent {
   l_control: boolean;
@@ -53,47 +54,52 @@ export interface KeyboardEvent {
   default_move: number;
 }
 
-const findPath = (
+export const findHID = (
   vendorId: string,
   productId: string,
   interfaceNumber?: number
 ) => {
-  if (vendorId && productId) {
+  // return undefined if no vendorId or productId is passed
+  if (!vendorId || !productId) {
+    log.error(
+      LOGPREFIX,
+      `Missing vendor or productid. VID:PID: ${vendorId}:${productId}`
+    );
+    return undefined;
+  }
+
+  log.info(
+    LOGPREFIX,
+    `Looking for keyboard with VID:PID: ${vendorId}:${productId}`
+  );
+
+  const devices = hid.devices();
+  const deviceInfo = devices.find(item => {
+    if (interfaceNumber) {
+      return (
+        item.vendorId === Number(vendorId) &&
+        item.productId === Number(productId) &&
+        item.interface === Number(interfaceNumber)
+      );
+    } else {
+      return (
+        item.vendorId === Number(vendorId) &&
+        item.productId === Number(productId)
+      );
+    }
+  });
+
+  if (deviceInfo) {
     log.info(
       LOGPREFIX,
-      `Looking for keyboard with VID:PID: ${vendorId}:${productId}`
+      `Successfully found device with VID:PID: ${vendorId}:${productId}`
     );
-
-    const devices = hid.devices();
-    const deviceInfo = devices.find(item => {
-      if (interfaceNumber) {
-        return (
-          item.vendorId === Number(vendorId) &&
-          item.productId === Number(productId) &&
-          item.interface === Number(interfaceNumber)
-        );
-      } else {
-        return (
-          item.vendorId === Number(vendorId) &&
-          item.productId === Number(productId)
-        );
-      }
-    });
-
-    if (deviceInfo) {
-      log.info(
-        LOGPREFIX,
-        `Successfully found device with VID:PID: ${vendorId}:${productId}`
-      );
-      return deviceInfo.path;
-    } else {
-      log.info(
-        LOGPREFIX,
-        `Failed finding device with VID:PID: ${vendorId}:${productId}`
-      );
-      return undefined;
-    }
+    return deviceInfo;
   } else {
+    log.info(
+      LOGPREFIX,
+      `Failed finding device with VID:PID: ${vendorId}:${productId}`
+    );
     return undefined;
   }
 };
@@ -112,64 +118,34 @@ export class NumpadController {
   constructor(options: Options) {
     this.options = options;
 
-    if (options.list) {
-      log.info(LOGPREFIX, `Serialports found:`);
-      serialport
-        .list()
-        .then(ports => {
-          ports.forEach(port => {
-            log.info(LOGPREFIX, `${port.path}`);
-          });
-        })
-        .catch(err => {
-          if (err) {
-            log.error(LOGPREFIX, err);
-          }
-        });
-
-      process.exit(1);
-    }
-
-    if (options.devicelist) {
-      log.info(LOGPREFIX, `USB devices found:`);
-      if (options.vendorId && options.productId) {
-        log.info(
-          LOGPREFIX,
-          `Keyboard HID Address: ${findPath(
-            options.vendorId,
-            options.productId
-          )}`
-        );
-      } else {
-        const devices = hid.devices();
-        devices.forEach(device => {
-          log.info(LOGPREFIX, `Manufacturer: ${device.manufacturer}`);
-          log.info(LOGPREFIX, `VendorId: ${device.vendorId}`);
-          log.info(LOGPREFIX, `ProductId: ${device.productId}`);
-          log.info(LOGPREFIX, `Interface: ${device.interface}`);
-          log.info(LOGPREFIX, `Path: ${device.path}\n`);
-        });
-      }
-
-      process.exit(1);
-    }
-
     // find keyboard with index 0
-    const keyboardHIDAddress = findPath(options.vendorId, options.productId, 0);
-    if (!keyboardHIDAddress) {
+    const hidDevice = findHID(options.vendorId, options.productId, 0);
+    if (!hidDevice) {
       log.error(LOGPREFIX, `No keyboard found! Exiting...`);
       process.exit(1);
     } else {
-      log.info(LOGPREFIX, 'Keyboard HID Address:', keyboardHIDAddress);
-      this.keyboard = new hid.HID(keyboardHIDAddress);
-      this.connected = true;
+      const keyboardHIDAddress = hidDevice.path;
+      if (!keyboardHIDAddress) {
+        log.error(LOGPREFIX, `Keyboard address empty. Exiting...`);
+        process.exit(1);
+      } else {
+        log.info(
+          LOGPREFIX,
+          'Opening keyboard using HID Address:',
+          keyboardHIDAddress
+        );
+        this.keyboard = new hid.HID(keyboardHIDAddress);
 
-      // Listen for numpad events
-      this.keyboard.on('data', this.keyboardEventOn.bind(this));
+        // Listen for numpad events
+        this.keyboard.on('data', this.keyboardEventOn.bind(this));
+        this.connected = true;
+      }
     }
   }
 
   keyboardEventOn(data: Buffer) {
+    log.info(LOGPREFIX, `keyboardEventOn`);
+
     // The codes in the buffer are HID reports from a typical USB keyboard.
     // They are described in the Universal Serial Bus HID Usage Tables document in Chapter 10
     // "Keyboard/Keypad Page (0x07)".

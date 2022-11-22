@@ -271,7 +271,11 @@ export class Connector {
   // out for `--fake-socket` option.
   //--------------------------------------------------------------------------
   subscribeMessage(msg: string, callback: any) {
-    if (!this.options.simulate) this.socket.on(msg, callback);
+    if (!this.options.simulate) {
+      try {
+        this.socket.on(msg, callback);
+      } catch (error) {}
+    }
     log.info(
       this.logPrefix,
       `Ready to listen for message '${msg}' from the socket.`

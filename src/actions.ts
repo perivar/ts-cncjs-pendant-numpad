@@ -160,6 +160,7 @@ export class Actions {
         break;
       case 88: // Key: OK or Enter - HOMING
         this.gcodeSender.moveGantryHome();
+        break;
       default:
         break;
     }

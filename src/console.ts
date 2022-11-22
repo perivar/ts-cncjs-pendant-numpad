@@ -9,20 +9,19 @@
 
 import { Command, program } from 'commander';
 import merge from 'deepmerge';
-// These weird (old-fashioned?) imports are inherently singletons, and we're
-// not interested in eventually testing them anyway, so let's just use them
-// as singletons without any dependency injectability.
 import fs from 'fs';
+import hid from 'node-hid';
 import log from 'npmlog';
 import os from 'os';
 import path from 'path';
 import process from 'process';
+import serialport from 'serialport';
 import { URL } from 'url';
 
 import { Actions } from './actions.js';
 import { ActionsMappings } from './actions.js';
 import { Connector } from './connector.js';
-import { NumpadController } from './numpad_controller.js';
+import { findHID, NumpadController } from './numpad_controller.js';
 
 //----------------------------------------------------------------------------
 // Constant definitions.
@@ -55,6 +54,9 @@ export interface Options {
   actionsMap: ActionsMappings;
 }
 
+const decimalToHex = (d: number) =>
+  '0x' + Number(d).toString(16).padStart(4, '0');
+
 //----------------------------------------------------------------------------
 // Execute the command line program.
 //----------------------------------------------------------------------------
@@ -76,6 +78,49 @@ export function startCLI() {
   );
 
   configureLogging(options);
+
+  if (options.list) {
+    log.info(LOGPREFIX, `Starting to look for serial ports...`);
+    serialport
+      .list()
+      .then(ports => {
+        log.info(LOGPREFIX, `Found serial ports:`);
+        ports.forEach(port => {
+          log.info(LOGPREFIX, `${port.path}`);
+        });
+      })
+      .catch(err => {
+        log.error(LOGPREFIX, err);
+        process.exit(1);
+      });
+
+    return;
+  }
+
+  if (options.devicelist) {
+    log.info(LOGPREFIX, `Looking for USB devices:`);
+    if (options.vendorId && options.productId) {
+      const hidDevice = findHID(options.vendorId, options.productId);
+      if (hidDevice) {
+        log.info(LOGPREFIX, `Manufacturer: ${hidDevice.manufacturer}`);
+        log.info(LOGPREFIX, `VendorId: ${decimalToHex(hidDevice.vendorId)}`);
+        log.info(LOGPREFIX, `ProductId: ${decimalToHex(hidDevice.productId)}`);
+        log.info(LOGPREFIX, `Interface: ${hidDevice.interface}`);
+        log.info(LOGPREFIX, `Path: ${hidDevice.path}`);
+      }
+    } else {
+      const devices = hid.devices();
+      devices.forEach(hidDevice => {
+        log.info(LOGPREFIX, `Manufacturer: ${hidDevice.manufacturer}`);
+        log.info(LOGPREFIX, `VendorId: ${decimalToHex(hidDevice.vendorId)}`);
+        log.info(LOGPREFIX, `ProductId: ${decimalToHex(hidDevice.productId)}`);
+        log.info(LOGPREFIX, `Interface: ${hidDevice.interface}`);
+        log.info(LOGPREFIX, `Path: ${hidDevice.path}\n`);
+      });
+    }
+
+    return;
+  }
 
   console.log(
     `${program.name()} is currently running. Stop running with Control-C`
@@ -149,8 +194,8 @@ function configureCLI(cli: Command, version: string) {
       '-d, --devicelist',
       'list available devices then exit (vendorId- and productId is optional)'
     )
-    .option('--vendorId <vendor>', 'Vendor ID of USB HID device')
-    .option('--productId <product>', 'Product ID of USB HID device')
+    .option('--vendorId <vendor>', 'Vendor ID of USB HID device', '0x062a')
+    .option('--productId <product>', 'Product ID of USB HID device', '0x4101')
     .option(
       '--zProbeThickness <offset>',
       'offset (thickness) for Z probe',
@@ -167,13 +212,16 @@ function configureCLI(cli: Command, version: string) {
 //--------------------------------------------------------------------------
 // Get a Javascript object from the given JSON file.
 //--------------------------------------------------------------------------
-function loadOptionsFile(filename: any, optionsVersion: string): Options {
+function loadOptionsFile(
+  filename: fs.PathLike,
+  optionsVersion: string
+): Options {
   try {
     const rawData = fs.readFileSync(filename, 'utf8');
     const result = JSON.parse(rawData)[optionsVersion];
     return result || ({} as Options);
   } catch (err) {
-    log.warn(LOGPREFIX, err as any);
+    // log.warn(LOGPREFIX, err as any);
     return {} as Options;
   }
 }
