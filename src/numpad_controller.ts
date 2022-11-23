@@ -14,7 +14,7 @@ import { Options } from './console';
 //------------------------------------------------------------------------------
 // Constant and interface definitions.
 //------------------------------------------------------------------------------
-const LOGPREFIX = 'NUMPAD  '; // keep at 9 digits for consistency
+const LOGPREFIX = 'NUMPAD   '; // keep at 9 digits for consistency
 
 /*
 const controllerMapping: Record<number, string> = {
