@@ -25,14 +25,14 @@
   "engines": {
     "node": ">=10"
   },
-  "bin": "bin/cncjs-pendant-numpad.js",
+  "bin": "bin/cncjs-pendant-numpad",
   "preferGlobal": true,
   "scripts": {
     "build-ts": "tsc",
     "copy-files": "cpy 'src/*.json' lib",
     "build": "rimraf ./lib && npm run build-ts && npm run copy-files",
     "start:dev": "nodemon",
-    "start": "npm run build && node bin/cncjs-pendant-numpad.js",
+    "start": "npm run build && node bin/cncjs-pendant-numpad",
     "lint": "eslint '**/*.{js,ts}'",
     "lint-fix": "eslint '**/*.{js,ts}' --fix",
     "format": "prettier --check \"**/*.{js,ts}\"",

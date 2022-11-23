@@ -11,10 +11,14 @@ import log from 'npmlog';
 
 import { Connector } from './connector';
 import { Options } from './console';
-import { GcodeGrbl } from './gcode-grbl.js';
-import { GcodeMarlin } from './gcode-marlin.js';
-import { GcodeSender } from './gcode-sender.js';
-import { KeyboardEvent, NumpadController } from './numpad_controller';
+import { GcodeGrbl } from './gcode-grbl';
+import { GcodeMarlin } from './gcode-marlin';
+import { GcodeSender } from './gcode-sender';
+import {
+  KeyboardEvent,
+  NumpadController,
+  NumpadState,
+} from './numpad_controller';
 
 //------------------------------------------------------------------------------
 // Constant and interface definitions.
@@ -37,6 +41,10 @@ export class Actions {
   numpadController: NumpadController; // connection to numpad
   options: Options; // program-wide options
   gcodeSender: GcodeSender; // abstraction interface
+
+  numpadState = {
+    default_move: 1, // Alter by F1, F2, F3
+  } as NumpadState; // state of current numpad
 
   //----------------------------------------------------------------------------
   // constructor()
@@ -82,60 +90,40 @@ export class Actions {
   //--------------------------------------------------------------------------
   onUse(kbdevent: KeyboardEvent) {
     // Calculate move size modifiers
-    kbdevent.move = kbdevent.default_move;
+    const move = this.numpadState.default_move;
 
-    log.info(LOGPREFIX, `key: ${kbdevent.key}`);
+    log.info(LOGPREFIX, `key: ${kbdevent.key} move: ${move}`);
 
     switch (kbdevent.key) {
       case 86: // -                 (z axis up)
-        this.gcodeSender.moveGantryRelative(0, 0, +kbdevent.move, 2000);
+        this.gcodeSender.moveGantryRelative(0, 0, +move, 2000);
         break;
       case 87: // +                 (z axis down)
-        this.gcodeSender.moveGantryRelative(0, 0, -kbdevent.move, 2000);
+        this.gcodeSender.moveGantryRelative(0, 0, -move, 2000);
         break;
       case 92: // arrow: left (4)   (move -X)
-        this.gcodeSender.moveGantryRelative(-kbdevent.move, 0, 0, 2000);
+        this.gcodeSender.moveGantryRelative(-move, 0, 0, 2000);
         break;
       case 94: // arrow: right (6)  (move +X)
-        this.gcodeSender.moveGantryRelative(+kbdevent.move, 0, 0, 2000);
+        this.gcodeSender.moveGantryRelative(+move, 0, 0, 2000);
         break;
       case 96: // arrow: up (8)     (move +Y)
-        this.gcodeSender.moveGantryRelative(0, +kbdevent.move, 0, 2000);
+        this.gcodeSender.moveGantryRelative(0, +move, 0, 2000);
         break;
       case 90: // arrow: down (2)   (move -Y)
-        this.gcodeSender.moveGantryRelative(0, -kbdevent.move, 0, 2000);
+        this.gcodeSender.moveGantryRelative(0, -move, 0, 2000);
         break;
       case 89: // arrow: End (1)    (move -X and -Y)
-        this.gcodeSender.moveGantryRelative(
-          -kbdevent.move,
-          -kbdevent.move,
-          0,
-          2000
-        );
+        this.gcodeSender.moveGantryRelative(-move, -move, 0, 2000);
         break;
       case 97: // arrow: Page up (9) (move +X and +Y)
-        this.gcodeSender.moveGantryRelative(
-          +kbdevent.move,
-          +kbdevent.move,
-          0,
-          2000
-        );
+        this.gcodeSender.moveGantryRelative(+move, +move, 0, 2000);
         break;
       case 91: // arrow: Page Down (3) (move +X and -Y)
-        this.gcodeSender.moveGantryRelative(
-          +kbdevent.move,
-          -kbdevent.move,
-          0,
-          2000
-        );
+        this.gcodeSender.moveGantryRelative(+move, -move, 0, 2000);
         break;
       case 95: // Key 7: Home (7)  (move -X and +Y)
-        this.gcodeSender.moveGantryRelative(
-          -kbdevent.move,
-          +kbdevent.move,
-          0,
-          2000
-        );
+        this.gcodeSender.moveGantryRelative(-move, +move, 0, 2000);
         break;
       case 93: // Key: 5        (move to work home)
         this.gcodeSender.moveGantryWCSHomeXY();
@@ -157,13 +145,13 @@ export class Actions {
         this.gcodeSender.recordGantryZeroWCSY();
         break;
       case 84: // key: /
-        kbdevent.default_move = 0.1;
+        this.numpadState.default_move = 0.1;
         break;
       case 85: // key: *
-        kbdevent.default_move = 1;
+        this.numpadState.default_move = 1;
         break;
       case 42: // key: Backspace
-        kbdevent.default_move = 10;
+        this.numpadState.default_move = 10;
         break;
       default:
         break;

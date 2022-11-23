@@ -8,9 +8,8 @@ A simple pendant for using cncjs with a num pad (as Wireless/USB Input). The cod
 
 --
 
-NOTICE: Tested with LogiLink num pad on Linux/Raspbian (Raspberry Pi).
-Also tested with Exibel SK-051AG  num pad on Linux/Raspbian (Raspberry Pi).
-(default options are set to Exibel vendor- and productID (which is the same as LogiLink), see description below for running with other vendors/products)
+NOTICE: Tested with LogiLink and Exibel SK-051AG num pad on Linux/Raspbian (Raspberry Pi).
+(default options are set to LogiLink/Exibel vendor- and productID, see description below for running with other vendors/products)
 
 
 --
@@ -54,10 +53,10 @@ sudo udevadm trigger
 
 
 ## Usage
-Run `bin/cncjs-pendant-numpad.js` to start. Pass --help to `cncjs-pendant-numpad.js` for more options.
+Run `bin/cncjs-pendant-numpad` to start. Pass --help to `cncjs-pendant-numpad` for more options.
 
 ```
-bin/cncjs-pendant-numpad.js --help
+bin/cncjs-pendant-numpad --help
 ```
 
 Hotkeys:
@@ -88,7 +87,7 @@ Hotkeys:
 You can download a SVG file for labels [here](docs/key_labels.svg).
 
 ### Probe Offset
-The probe offset default is set to 1.56 mm ( i am using a piece of PCB with a thickness of 1.56 mm). You can override this by giving the pendant
+The probe offset default is set to 19.5 mm ( i am using a piece of PCB with a thickness of 1.56 mm). You can override this by giving the pendant
 an extra start parameter for probe offset.
 
 ```
@@ -152,7 +151,7 @@ pm2 startup
 sudo env PATH=$PATH:/home/pi/.nvm/versions/node/v10.24.1/bin /home/pi/.nvm/versions/node/v10.24.1/lib/node_modules/pm2/bin/pm2 startup systemd -u pi --hp /home/pi
 
 # Start Num Pad Remote Pendant for CNCjs (connected to serial device @ /dev/ttyUSB0) with PM2
-pm2 start $(which cncjs-pendant-numpad.js) -- -p "/dev/ttyUSB0"
+pm2 start $(which cncjs-pendant-numpad) -- -p "/dev/ttyUSB0"
 
 # Set current running apps to startup
 pm2 save

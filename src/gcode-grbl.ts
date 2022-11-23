@@ -7,8 +7,8 @@
 // Copyright (c) 2017-2022 various contributors. See LICENSE for copyright
 // and MIT license information.
 
-import { Actions } from './actions.js';
-import { GcodeSender } from './gcode-sender.js';
+import { Actions } from './actions';
+import { GcodeSender } from './gcode-sender';
 
 //----------------------------------------------------------------------------
 // class GcodeGrbl

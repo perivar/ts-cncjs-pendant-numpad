@@ -17,7 +17,7 @@ import io from 'socket.io-client';
 import { clearInterval } from 'timers';
 
 import { Options } from './console';
-import { NumpadController } from './numpad_controller.js';
+import { NumpadController } from './numpad_controller';
 
 //------------------------------------------------------------------------------
 // Constant and interface definitions.

@@ -50,7 +50,12 @@ export interface KeyboardEvent {
   r_meta: boolean;
 
   key: number;
-  move: number;
+}
+
+//------------------------------------------------------------------------------
+// Represents the instantaneous state of the gamepad.
+//------------------------------------------------------------------------------
+export interface NumpadState {
   default_move: number;
 }
 
@@ -199,8 +204,6 @@ export class NumpadController {
       r_meta: false,
 
       key: 0, // Normal keys
-      move: 1, // Actually move size
-      default_move: 1, // Alter by F1, F2, F3
     };
 
     const bits = recv.shift(); // remove first element from array and returns that removed element
@@ -221,7 +224,6 @@ export class NumpadController {
     log.info(LOGPREFIX, `Key: 0x${keyHex}`);
 
     // const buttonPress = controllerMapping[kbdevent.key];
-    this.events.emit('press', kbdevent);
     this.events.emit('use', kbdevent);
   }
 
@@ -230,7 +232,6 @@ export class NumpadController {
     switch (eventName) {
       case 'attach':
       case 'remove':
-      case 'press':
       case 'use':
         break;
       default:

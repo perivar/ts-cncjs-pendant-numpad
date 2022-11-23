@@ -7,7 +7,7 @@
 // Copyright (c) 2017-2022 various contributors. See LICENSE for copyright
 // and MIT license information.
 
-import { GcodeSender } from './gcode-sender.js';
+import { GcodeSender } from './gcode-sender';
 
 export class GcodeMarlin extends GcodeSender {
   override performHoming() {

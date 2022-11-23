@@ -18,10 +18,9 @@ import process from 'process';
 import serialport from 'serialport';
 import { URL } from 'url';
 
-import { Actions } from './actions.js';
-import { ActionsMappings } from './actions.js';
-import { Connector } from './connector.js';
-import { findHID, NumpadController } from './numpad_controller.js';
+import { Actions, ActionsMappings } from './actions';
+import { Connector } from './connector';
+import { findHID, NumpadController } from './numpad_controller';
 
 //----------------------------------------------------------------------------
 // Constant definitions.
@@ -128,6 +127,9 @@ export function startCLI() {
 
   if (!options.port) {
     log.error(LOGPREFIX, `No port specified!`);
+    console.log(
+      `Use '${program.name()} --help' if you're expecting to see something else here.`
+    );
 
     return;
   }
