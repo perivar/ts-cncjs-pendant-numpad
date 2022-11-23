@@ -1,5 +1,7 @@
 {
   "options_version_2.0": {
+    "vendorId": "0x062a",
+    "productId": "0x4101",
     "actionsMap": {
       "KEYCODE_BACKSPACE": "",
       "KEYCODE_NUM_LOCK": "",

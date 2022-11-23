@@ -70,7 +70,7 @@ export const findHID = (
 
   log.info(
     LOGPREFIX,
-    `Looking for keyboard with VID:PID: ${vendorId}:${productId}`
+    `Looking for HID device with VID:PID: ${vendorId}:${productId}`
   );
 
   const devices = hid.devices();
@@ -92,13 +92,13 @@ export const findHID = (
   if (deviceInfo) {
     log.info(
       LOGPREFIX,
-      `Successfully found device with VID:PID: ${vendorId}:${productId}`
+      `Successfully found HID device with VID:PID: ${vendorId}:${productId}`
     );
     return deviceInfo;
   } else {
     log.info(
       LOGPREFIX,
-      `Failed finding device with VID:PID: ${vendorId}:${productId}`
+      `Failed finding HID device with VID:PID: ${vendorId}:${productId}`
     );
     return undefined;
   }
@@ -121,31 +121,48 @@ export class NumpadController {
     // find keyboard with index 0
     const hidDevice = findHID(options.vendorId, options.productId, 0);
     if (!hidDevice) {
-      log.error(LOGPREFIX, `No keyboard found! Exiting...`);
-      process.exit(1);
+      log.error(LOGPREFIX, `No keyboard found!`);
+      if (!options.simulate) process.exit(1);
     } else {
       const keyboardHIDAddress = hidDevice.path;
       if (!keyboardHIDAddress) {
-        log.error(LOGPREFIX, `Keyboard address empty. Exiting...`);
-        process.exit(1);
+        log.error(LOGPREFIX, `No keyboard address found.`);
+        if (!options.simulate) process.exit(1);
       } else {
         log.info(
           LOGPREFIX,
-          'Opening keyboard using HID Address:',
+          'Opening keyboard using HID address:',
           keyboardHIDAddress
         );
-        this.keyboard = new hid.HID(keyboardHIDAddress);
+        try {
+          this.keyboard = new hid.HID(keyboardHIDAddress);
 
-        // Listen for numpad events
-        this.keyboard.on('data', this.keyboardEventOn.bind(this));
-        this.connected = true;
+          // Listen for numpad data events
+          this.keyboard.on('data', this.keyboardEventOn.bind(this));
+
+          // Listen for numpad error events
+          this.keyboard.on('error', err => {
+            log.error(LOGPREFIX, `Keyboard unplugged? ` + err);
+
+            // inform the listeners that we have detached the numpad
+            this.connected = false;
+            this.events.emit('remove');
+
+            if (!options.simulate) process.exit(1);
+          });
+
+          // inform the listeners that we have attached the numpad
+          this.connected = true;
+          this.events.emit('attach');
+        } catch (err) {
+          log.error(LOGPREFIX, `Could not connect to keyboard.`);
+          if (!options.simulate) process.exit(1);
+        }
       }
     }
   }
 
   keyboardEventOn(data: Buffer) {
-    log.info(LOGPREFIX, `keyboardEventOn`);
-
     // The codes in the buffer are HID reports from a typical USB keyboard.
     // They are described in the Universal Serial Bus HID Usage Tables document in Chapter 10
     // "Keyboard/Keypad Page (0x07)".
@@ -211,6 +228,8 @@ export class NumpadController {
   // subscribe to a numpad event
   on(eventName: string, handler: any) {
     switch (eventName) {
+      case 'attach':
+      case 'remove':
       case 'press':
       case 'use':
         break;
@@ -219,6 +238,9 @@ export class NumpadController {
         return;
     }
     this.events.on(eventName, handler);
+
+    // if this is an attach event, and we already have a controller, let them know
+    if (eventName == 'attach' && this.connected) this.events.emit('attach');
   }
 
   // unsubscribed from a numpad event

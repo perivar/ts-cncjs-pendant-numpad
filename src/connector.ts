@@ -42,7 +42,7 @@ export class Connector {
   socket: SocketIOClient.Socket;
   serial: NodeJS.Timer;
   logPrefix: string;
-  awaitingString = 'Waiting for a numpad controller to be connected.';
+  awaitingString = 'Waiting for a numpad to be connected.';
 
   constructor(numpadController: NumpadController, options: Options) {
     this.numpadController = numpadController;
@@ -52,38 +52,19 @@ export class Connector {
     if (!numpadController.isConnected())
       log.info(this.logPrefix, this.awaitingString);
 
-    // // When a device is connected and a socket is not already opened, then
-    // // open a new socket to the host, and connect to the serial port. If
-    // // there are multiple controllers, announce this fact!
-    // // Note: we're deliberitely choosing to open a socket and serial
-    // //   connection only while a controller is connected. There's no reason
-    // //   to keep a socket and serial connection open needlessly, but also it
-    // //   enables us to unplug and plug in the numpad in order to kick off
-    // //   reconnection attempts. Ironically, "unplug the joystick and plug it in
-    // //   again" will be valid troubleshooting, but not for reasons end users
-    // //   might expect ;-)
-    // numpadController.on('attach', (id, state) => {
-    //   const numDevices = numpadController.numDevices();
-    //   if (numDevices == 1) this.connectServer();
-    //   else
-    //     log.warn(
-    //       this.logPrefix,
-    //       `There are ${numDevices} numpad controllers attached. Operate with caution!`
-    //     );
-    // });
+    numpadController.on('attach', () => {
+      this.connectServer();
+    });
 
-    // // When the last numpad controller is disconnected, then close the socket and
-    // // serial connections, and then display the waiting message.
-    // numpadController.on('remove', (id, state) => {
-    //   const numDevices = numpadController.numDevices();
-    //   if (numDevices < 1 && this.socket) {
-    //     this.socket.close();
-    //     clearInterval(this.serial);
-    //     this.serialConnected = false;
-    //   }
+    numpadController.on('remove', () => {
+      if (this.socket) {
+        this.socket.close();
+        clearInterval(this.serial);
+        this.serialConnected = false;
+      }
 
-    //   log.info(this.logPrefix, this.awaitingString);
-    // });
+      log.info(this.logPrefix, this.awaitingString);
+    });
   } // constructor()
 
   //--------------------------------------------------------------------------
@@ -274,7 +255,12 @@ export class Connector {
     if (!this.options.simulate) {
       try {
         this.socket.on(msg, callback);
-      } catch (error) {}
+      } catch (err) {
+        log.error(
+          this.logPrefix,
+          `Failed subscribing to message '${msg}' from the socket.`
+        );
+      }
     }
     log.info(
       this.logPrefix,

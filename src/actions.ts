@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 // actions
-// A module that creates actions based on input from the numpad controller and
+// A module that creates actions based on input from the numpad and
 // sends them to a socket server (typically CNCjs) to execute them.
 //
 // Copyright (c) 2017-2022 various contributors. See LICENSE for copyright
@@ -47,6 +47,7 @@ export class Actions {
     this.options = options;
     this.gcodeSender = this.newGcodeSender();
 
+    // listen for use events
     this.numpadController.on('use', this.onUse.bind(this));
   }
 

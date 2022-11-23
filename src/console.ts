@@ -66,20 +66,14 @@ export function startCLI() {
 
   const cliOptions = configureCLI(program as Command, version)
     .parse()
-    .opts();
+    .opts() as Options;
 
   cliOptions['simulate'] = program.args[0] === 'simulate';
   cliOptions['actionsMap'] = {};
 
-  const optVersion = 'options_version_2.0';
-  const options: Options = mergeOptions(
-    cliOptions as Options,
-    getFileOptions(optVersion)
-  );
+  configureLogging(cliOptions);
 
-  configureLogging(options);
-
-  if (options.list) {
+  if (cliOptions.list) {
     log.info(LOGPREFIX, `Starting to look for serial ports...`);
     serialport
       .list()
@@ -91,16 +85,15 @@ export function startCLI() {
       })
       .catch(err => {
         log.error(LOGPREFIX, err);
-        process.exit(1);
       });
 
     return;
   }
 
-  if (options.devicelist) {
+  if (cliOptions.devicelist) {
     log.info(LOGPREFIX, `Looking for USB devices:`);
-    if (options.vendorId && options.productId) {
-      const hidDevice = findHID(options.vendorId, options.productId);
+    if (cliOptions.vendorId && cliOptions.productId) {
+      const hidDevice = findHID(cliOptions.vendorId, cliOptions.productId);
       if (hidDevice) {
         log.info(LOGPREFIX, `Manufacturer: ${hidDevice.manufacturer}`);
         log.info(LOGPREFIX, `VendorId: ${decimalToHex(hidDevice.vendorId)}`);
@@ -122,6 +115,23 @@ export function startCLI() {
     return;
   }
 
+  // read default vendor and product id (cannot be read before --devicelist) from config file
+  const optVersion = 'options_version_2.0';
+  const options: Options = mergeOptions(
+    cliOptions as Options,
+    getFileOptions(optVersion)
+  );
+
+  if (!options.secret && process.env['CNCJS_SECRET']) {
+    options.secret = process.env['CNCJS_SECRET'];
+  }
+
+  if (!options.port) {
+    log.error(LOGPREFIX, `No port specified!`);
+
+    return;
+  }
+
   console.log(
     `${program.name()} is currently running. Stop running with Control-C`
   );
@@ -129,7 +139,7 @@ export function startCLI() {
     `Use '${program.name()} --help' if you're expecting to see something else here.`
   );
 
-  log.trace(LOGPREFIX, 'Creating the Numpad controller instance.');
+  log.trace(LOGPREFIX, 'Creating the Numpad instance.');
   const numpadController = new NumpadController(options);
 
   log.trace(LOGPREFIX, 'Starting the main connector service.');
@@ -194,8 +204,8 @@ function configureCLI(cli: Command, version: string) {
       '-d, --devicelist',
       'list available devices then exit (vendorId- and productId is optional)'
     )
-    .option('--vendorId <vendor>', 'Vendor ID of USB HID device', '0x062a')
-    .option('--productId <product>', 'Product ID of USB HID device', '0x4101')
+    .option('--vendorId <vendor>', 'Vendor ID of USB HID device')
+    .option('--productId <product>', 'Product ID of USB HID device')
     .option(
       '--zProbeThickness <offset>',
       'offset (thickness) for Z probe',
@@ -203,9 +213,6 @@ function configureCLI(cli: Command, version: string) {
     )
 
     .arguments('[action]');
-  // .action(action => {
-  //   console.log('action:', action);
-  // })
   return cli;
 }
 
@@ -272,9 +279,9 @@ function getFileOptions(optionsVersion: string): Options {
 function mergeOptions(cliOptions: Options, fileOptions: Options): Options {
   // Determine which option value to use in the program.
   function winningValue(optionName: string): any {
-    // if (program.getOptionValueSource(optionName) === 'cli') {
-    //   return cliOptions[optionName];
-    // }
+    if (cliOptions[optionName]) {
+      return cliOptions[optionName];
+    }
     return fileOptions[optionName] || cliOptions[optionName];
   }
 
