@@ -344,11 +344,11 @@ function configureLogging(options: Options) {
 // demoLogging()
 // A simple demonstration of what can/will be output from the logging system.
 //----------------------------------------------------------------------------
-function demoLogging() {
-  log.trace('DRIVER   ', 'registers: pc=0402 sr=30 ac=00 xr=0 yr=0 sp=f7');
-  log.debug('DRIVER   ', 'KEYCODE_BUTTON_L1: true');
-  log.info('', 'Waiting for a numpad to be connected.');
-  log.warn('FRONTEND ', 'Password is weak.');
-  log.error('CONNECTOR', 'Short circuit detected in operator.');
-  log.silent('', 'You should never see this.');
-}
+// function demoLogging() {
+//   log.trace('DRIVER   ', 'registers: pc=0402 sr=30 ac=00 xr=0 yr=0 sp=f7');
+//   log.debug('DRIVER   ', 'KEYCODE_BUTTON_L1: true');
+//   log.info('', 'Waiting for a numpad to be connected.');
+//   log.warn('FRONTEND ', 'Password is weak.');
+//   log.error('CONNECTOR', 'Short circuit detected in operator.');
+//   log.silent('', 'You should never see this.');
+// }

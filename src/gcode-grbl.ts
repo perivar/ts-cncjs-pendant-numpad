@@ -7,8 +7,15 @@
 // Copyright (c) 2017-2022 various contributors. See LICENSE for copyright
 // and MIT license information.
 
+import log from 'npmlog';
+
 import { Actions } from './actions';
 import { GcodeSender } from './gcode-sender';
+
+//----------------------------------------------------------------------------
+// Constant definitions.
+//----------------------------------------------------------------------------
+const LOGPREFIX = 'GCODEGRBL'; // keep at 9 digits for consistency
 
 //----------------------------------------------------------------------------
 // class GcodeGrbl
@@ -25,8 +32,15 @@ export class GcodeGrbl extends GcodeSender {
     this.zProbeRecord = new ZProbeRecord();
     this.connector.subscribeMessage('serialport:read', (data: string) => {
       if (this.zProbeRecord.isValidString(data)) {
+        log.info(LOGPREFIX, `Trying to read probe string: ${data}`);
+
         this.zProbeRecord.updateFromString(data);
         if (this.zProbeRecord.success) {
+          log.info(
+            LOGPREFIX,
+            `Probe data found: [X${this.zProbeRecord.x} Y${this.zProbeRecord.y} Z${this.zProbeRecord.z}]`
+          );
+
           // The actual Z position is the detected position, but additionally
           // the thickness of the plate. This assumes Z is negative, and makes
           // it more so. This works for me; is this a safe assumption?
@@ -42,7 +56,7 @@ export class GcodeGrbl extends GcodeSender {
 
   //----------------------------------------------------------------------------
   // move gantry: relative movement
-  //  Override the base class implementation to use grbl-specific `$J=`ogging
+  //  Override the base class implementation to use grbl-specific `$J=` jogging
   //  notation. We're also going to slow the speed down just slightly so that
   //  we can keep the planner full.
   //----------------------------------------------------------------------------
@@ -102,7 +116,7 @@ export class GcodeGrbl extends GcodeSender {
 // Instances of this class keep a record of the Z Probe position as they
 // come in.
 //----------------------------------------------------------------------------
-import log from 'npmlog';
+
 class ZProbeRecord {
   x: number;
   y: number;
@@ -136,12 +150,18 @@ class ZProbeRecord {
       return;
     }
 
-    const values = data.match(/:(.*):/)![1].split(',');
-    const success = data.match(/.*:(\d)/)![1];
+    const valuesMatch = data.match(/:(.*):/);
+    if (valuesMatch != null) {
+      const values = valuesMatch[1].split(',');
+      this.x = Number(values[0]);
+      this.y = Number(values[1]);
+      this.z = Number(values[2]);
+    }
 
-    this.x = Number(values[0]);
-    this.y = Number(values[1]);
-    this.z = Number(values[2]);
-    this.success = Boolean(Number(success));
+    const successMatch = data.match(/.*:(\d)/);
+    if (successMatch != null) {
+      const success = successMatch[1];
+      this.success = Boolean(Number(success));
+    }
   } // updateFromString()
 } // class ZProbeRecord

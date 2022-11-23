@@ -193,6 +193,43 @@ export class GcodeSender {
     this.sendMessage('command', 'gcode', 'G90'); // back to absolute coordinates
   }
 
+  performZProbingTimes2() {
+    const TOUCH_PLATE_THICKNESS = Number(this.options.zProbeThickness);
+    const SAFE_HEIGHT = -1; // Height needed to clear everything (negative number, distance below Z limit)
+    const PROBE_DISTANCE = 100;
+    const PROBE_FAST_FEEDRATE = 200; // mm/min
+    const PROBE_SLOW_FEEDRATE = 20; // mm/min
+    const RETRACTION_DISTANCE = 4; // mm
+
+    this.sendMessage('command', 'gcode', 'G21'); // set to millimeters
+    this.sendMessage('command', 'gcode', 'G90'); // absolute coordinates
+
+    this.sendMessage('command', 'gcode', `G53 Z${SAFE_HEIGHT}`); // move in machine coordinates
+
+    // Probe toward workpiece, stop on contact, signal error if failure
+    this.sendMessage('command', 'gcode', 'G91'); // relative coordinates
+    this.sendMessage(
+      'command',
+      'gcode',
+      `G38.2 Z-${PROBE_DISTANCE} F${PROBE_FAST_FEEDRATE}`
+    ); // probe toward stock
+    this.sendMessage('command', 'gcode', 'G0 Z1'); // lift up just a bit
+    this.sendMessage('command', 'gcode', `G38.2 Z-2 F${PROBE_SLOW_FEEDRATE}`); // probe toward stock
+    this.sendMessage('command', 'gcode', 'G90'); // absolute coordinates
+
+    // Update Z offset for tool taking touch plate height into account
+    this.sendMessage(
+      'command',
+      'gcode',
+      `G10 L20 P1 Z${TOUCH_PLATE_THICKNESS}`
+    ); // state that current Z is `TOUCH_PLATE_THICKNESS`
+
+    // Retract from the touch plate
+    this.sendMessage('command', 'gcode', 'G91'); // relative coordinates
+    this.sendMessage('command', 'gcode', `G0 Z${RETRACTION_DISTANCE}`); // lift up just a bit
+    this.sendMessage('command', 'gcode', 'G90'); // absolute coordinates
+  }
+
   //--------------------------------------------------
   // Zero out the work offset for X.
   //--------------------------------------------------

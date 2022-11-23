@@ -52,11 +52,14 @@ export interface KeyboardEvent {
   key: number;
 }
 
+export const DEFAULT_MM_PER_MIN = 2000;
+export const DEFAULT_MOVE_DISTANCE = 1;
+
 //------------------------------------------------------------------------------
-// Represents the instantaneous state of the gamepad.
+// Represents the instantaneous state of the numpad.
 //------------------------------------------------------------------------------
 export interface NumpadState {
-  default_move: number;
+  moveDistance: number;
 }
 
 export const findHID = (

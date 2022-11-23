@@ -12,7 +12,7 @@ import jwt from 'jsonwebtoken';
 import log from 'npmlog';
 import * as path from 'path';
 // Note: don't be tempted to update package.json to the newest version of
-// this; its version must match the version in use by CNCjs, which is 2.x.
+// socket.io-client; its version must match the version in use by CNCjs, which is 2.x.
 import io from 'socket.io-client';
 import { clearInterval } from 'timers';
 
