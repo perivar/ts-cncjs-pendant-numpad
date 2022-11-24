@@ -126,12 +126,16 @@ export function startCLI() {
   }
 
   if (!options.port) {
-    log.error(LOGPREFIX, `No port specified!`);
-    console.log(
-      `Use '${program.name()} --help' if you're expecting to see something else here.`
-    );
-
-    return;
+    if (options.simulate) {
+      log.info(LOGPREFIX, `Simulating with dummy port: dummyPort`);
+      options.port = 'dummyPort';
+    } else {
+      log.error(LOGPREFIX, `No port specified!`);
+      console.log(
+        `Use '${program.name()} --help' if you're expecting to see something else here.`
+      );
+      return;
+    }
   }
 
   console.log(

@@ -86,8 +86,11 @@ export class Connector {
     // Attempt to connect to the server. By default, `io.connect` will keep
     // trying forever and ever, so we will only sit back and let it.
     log.info(this.logPrefix, `Attempting connect to ${server}`);
-    if (this.options.simulate) this.openSerial();
-    else this.socket = io.connect(server, { query: `token=${token}` });
+    if (this.options.simulate) {
+      this.openSerial();
+    } else {
+      this.socket = io.connect(server, { query: `token=${token}` });
+    }
 
     //------------------------------------------------------------------------
     // cncjs sent us a 'connect' message, saying that we are successfully

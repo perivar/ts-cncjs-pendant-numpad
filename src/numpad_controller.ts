@@ -29,16 +29,6 @@ export interface KeyboardEvent {
   key: number;
 }
 
-export const DEFAULT_MM_PER_MIN = 2000;
-export const DEFAULT_MOVE_DISTANCE = 1;
-
-//------------------------------------------------------------------------------
-// Represents the instantaneous state of the numpad.
-//------------------------------------------------------------------------------
-export interface NumpadState {
-  moveDistance: number;
-}
-
 export const findHID = (
   vendorId: string,
   productId: string,
@@ -144,6 +134,12 @@ export class NumpadController {
           if (!options.simulate) process.exit(1);
         }
       }
+    }
+
+    if (!this.connected && options.simulate) {
+      log.info(LOGPREFIX, `Simulating a connected keyboard.`);
+      this.connected = true;
+      this.events.emit('attach');
     }
   }
 

@@ -46,8 +46,12 @@ export class GcodeGrbl extends GcodeSender {
           // it more so. This works for me; is this a safe assumption?
           const dz = this.zProbeRecord.z - Number(this.options.zProbeThickness);
           this.sendMessage('command', 'gcode', 'G91'); // relative coordinates
-          this.sendMessage('command', 'gcode', `G10 L2 P1 Z${dz}`); // set the offset
-          this.sendMessage('command', 'gcode', 'G0 Z3'); // lift up just a bit
+          this.sendMessage('command', 'gcode', `G10 L20 P1 Z${dz}`); // state that current Z is `dz`
+          this.sendMessage(
+            'command',
+            'gcode',
+            `G0 Z${this.retractionDistance}`
+          ); // lift up just a bit
           this.sendMessage('command', 'gcode', 'G90'); // back to absolute coordinates
         }
       }
@@ -64,17 +68,25 @@ export class GcodeGrbl extends GcodeSender {
     x: number,
     y: number,
     z: number,
-    mmPerMin: number
+    mmPerMin?: number
   ) {
     this.sendMessage('command', 'gcode', 'G21'); // set to millimeters
     this.sendMessage('command', 'gcode', `G91`);
-    this.sendMessage(
-      'command',
-      'gcode',
-      `$J=X${x.toFixed(4)} Y${y.toFixed(4)} Z${z.toFixed(4)} F${
-        mmPerMin * 0.98
-      }`
-    );
+    if (mmPerMin) {
+      this.sendMessage(
+        'command',
+        'gcode',
+        `$J=X${x.toFixed(4)} Y${y.toFixed(4)} Z${z.toFixed(4)} F${
+          mmPerMin * 0.98
+        }`
+      );
+    } else {
+      this.sendMessage(
+        'command',
+        'gcode',
+        `$J=X${x.toFixed(4)} Y${y.toFixed(4)} Z${z.toFixed(4)}`
+      );
+    }
     this.sendMessage('command', 'gcode', 'G90'); // back to absolute coordinates
   }
 
@@ -106,7 +118,13 @@ export class GcodeGrbl extends GcodeSender {
   //----------------------------------------------------------------------------
   override performZProbing() {
     this.sendMessage('command', 'gcode', 'G91'); // relative coordinates
-    this.sendMessage('command', 'gcode', 'G38.2 Z-50 F120'); // probe toward stock
+
+    this.sendMessage(
+      'command',
+      'gcode',
+      `G38.2 Z-${this.probeDistance} F${this.probeFastFeedrate}`
+    ); // probe toward stock
+
     this.sendMessage('command', 'gcode', 'G90'); // back to absolute coordinates
     // Stop! Now let's wait for the callback to finish setting up.
   }

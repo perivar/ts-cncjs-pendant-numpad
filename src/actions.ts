@@ -14,18 +14,20 @@ import { Options } from './console';
 import { GcodeGrbl } from './gcode-grbl';
 import { GcodeMarlin } from './gcode-marlin';
 import { GcodeSender } from './gcode-sender';
-import {
-  DEFAULT_MM_PER_MIN,
-  DEFAULT_MOVE_DISTANCE,
-  KeyboardEvent,
-  NumpadController,
-  NumpadState,
-} from './numpad_controller';
+import { KeyboardEvent, NumpadController } from './numpad_controller';
 
 //------------------------------------------------------------------------------
 // Constant and interface definitions.
 //------------------------------------------------------------------------------
 const LOGPREFIX = 'ACTIONS  '; // keep at 9 digits for consistency
+
+//------------------------------------------------------------------------------
+// Represents the instantaneous state of the numpad.
+//------------------------------------------------------------------------------
+export const DEFAULT_MOVE_DISTANCE = 1;
+interface NumpadState {
+  moveDistance: number;
+}
 
 //----------------------------------------------------------------------------
 // Interface definitions.
@@ -133,84 +135,34 @@ export class Actions {
 
     switch (keyCode) {
       case KEY_CODES.KP_MINUS: // -                  (z axis up)
-        this.gcodeSender.moveGantryRelative(
-          0,
-          0,
-          +distance,
-          DEFAULT_MM_PER_MIN
-        );
+        this.gcodeSender.moveGantryRelative(0, 0, +distance);
         break;
       case KEY_CODES.KP_PLUS: // +                   (z axis down)
-        this.gcodeSender.moveGantryRelative(
-          0,
-          0,
-          -distance,
-          DEFAULT_MM_PER_MIN
-        );
+        this.gcodeSender.moveGantryRelative(0, 0, -distance);
         break;
       case KEY_CODES.KP_4: // arrow: left (4)        (move -X)
-        this.gcodeSender.moveGantryRelative(
-          -distance,
-          0,
-          0,
-          DEFAULT_MM_PER_MIN
-        );
+        this.gcodeSender.moveGantryRelative(-distance, 0, 0);
         break;
       case KEY_CODES.KP_6: // arrow: right (6)       (move +X)
-        this.gcodeSender.moveGantryRelative(
-          +distance,
-          0,
-          0,
-          DEFAULT_MM_PER_MIN
-        );
+        this.gcodeSender.moveGantryRelative(+distance, 0, 0);
         break;
       case KEY_CODES.KP_8: // arrow: up (8)          (move +Y)
-        this.gcodeSender.moveGantryRelative(
-          0,
-          +distance,
-          0,
-          DEFAULT_MM_PER_MIN
-        );
+        this.gcodeSender.moveGantryRelative(0, +distance, 0);
         break;
       case KEY_CODES.KP_2: // arrow: down (2)        (move -Y)
-        this.gcodeSender.moveGantryRelative(
-          0,
-          -distance,
-          0,
-          DEFAULT_MM_PER_MIN
-        );
+        this.gcodeSender.moveGantryRelative(0, -distance, 0);
         break;
       case KEY_CODES.KP_1: // arrow: End (1)         (move -X and -Y)
-        this.gcodeSender.moveGantryRelative(
-          -distance,
-          -distance,
-          0,
-          DEFAULT_MM_PER_MIN
-        );
+        this.gcodeSender.moveGantryRelative(-distance, -distance, 0);
         break;
       case KEY_CODES.KP_9: // arrow: Page up (9)     (move +X and +Y)
-        this.gcodeSender.moveGantryRelative(
-          +distance,
-          +distance,
-          0,
-          DEFAULT_MM_PER_MIN
-        );
+        this.gcodeSender.moveGantryRelative(+distance, +distance, 0);
         break;
       case KEY_CODES.KP_3: // arrow: Page Down (3)   (move +X and -Y)
-        this.gcodeSender.moveGantryRelative(
-          +distance,
-          -distance,
-          0,
-          DEFAULT_MM_PER_MIN
-        );
+        this.gcodeSender.moveGantryRelative(+distance, -distance, 0);
         break;
       case KEY_CODES.KP_7: // Key 7: Home (7)        (move -X and +Y)
-        this.gcodeSender.moveGantryRelative(
-          -distance,
-          +distance,
-          0,
-          DEFAULT_MM_PER_MIN
-        );
+        this.gcodeSender.moveGantryRelative(-distance, +distance, 0);
         break;
       case KEY_CODES.KP_5: // Key: 5                 (move to work home)
         this.gcodeSender.moveGantryWCSHomeXY();
