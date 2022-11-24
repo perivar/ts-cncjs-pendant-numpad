@@ -16,29 +16,6 @@ import { Options } from './console';
 //------------------------------------------------------------------------------
 const LOGPREFIX = 'NUMPAD   '; // keep at 9 digits for consistency
 
-/*
-const controllerMapping: Record<number, string> = {
-  42: 'KEYCODE_BACKSPACE',
-  83: 'KEYCODE_NUM_LOCK',
-  84: 'KEYCODE_SLASH',
-  85: 'KEYCODE_STAR',
-  86: 'KEYCODE_MINUS',
-  87: 'KEYCODE_PLUS',
-  88: 'KEYCODE_ENTER',
-  89: 'KEYCODE_NUM1',
-  90: 'KEYCODE_NUM2',
-  91: 'KEYCODE_NUM3',
-  92: 'KEYCODE_NUM4',
-  93: 'KEYCODE_NUM5',
-  94: 'KEYCODE_NUM6',
-  95: 'KEYCODE_NUM7',
-  96: 'KEYCODE_NUM8',
-  97: 'KEYCODE_NUM9',
-  98: 'KEYCODE_NUM0',
-  99: 'KEYCODE_DOT',
-};
-*/
-
 export interface KeyboardEvent {
   l_control: boolean;
   l_shift: boolean;
@@ -223,10 +200,10 @@ export class NumpadController {
 
     kbdevent.key = recv.shift(); // remove first element from array and returns that removed element
 
+    const keyCode = kbdevent.key;
     const keyHex = kbdevent.key.toString(16);
-    log.info(LOGPREFIX, `Key: 0x${keyHex}`);
+    log.info(LOGPREFIX, `Sending keyCode: 0x${keyHex} = ${keyCode}`);
 
-    // const buttonPress = controllerMapping[kbdevent.key];
     this.events.emit('use', kbdevent);
   }
 

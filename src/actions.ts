@@ -35,6 +35,36 @@ export interface ActionsMappings {
   [key: string]: any;
 }
 
+// https://gist.github.com/Crenshinibon/5238119
+// https://git.sr.ht/~sircmpwn/hare-sdl2/tree/7855e717d6af1b4f1e9ed15b7db9bda6686da954/item/sdl2/keyboard.ha
+enum KEY_CODES {
+  KEYCODE_UNKNOWN = 0,
+
+  RETURN = 40,
+  ESCAPE = 41,
+  BACKSPACE = 42,
+  TAB = 43,
+  SPACE = 44,
+
+  NUMLOCKCLEAR = 83, // num lock on PC, clear on Mac keyboards
+  KP_DIVIDE = 84,
+  KP_MULTIPLY = 85,
+  KP_MINUS = 86,
+  KP_PLUS = 87,
+  KP_ENTER = 88,
+  KP_1 = 89,
+  KP_2 = 90,
+  KP_3 = 91,
+  KP_4 = 92,
+  KP_5 = 93,
+  KP_6 = 94,
+  KP_7 = 95,
+  KP_8 = 96,
+  KP_9 = 97,
+  KP_0 = 98,
+  KP_PERIOD = 99,
+}
+
 //------------------------------------------------------------------------------
 // Main module - provided access to command line options.
 //------------------------------------------------------------------------------
@@ -91,13 +121,18 @@ export class Actions {
   // when button combinations are needed.
   //--------------------------------------------------------------------------
   onUse(kbdevent: KeyboardEvent) {
-    // Calculate move distance modifier
+    // Get move distance modifier
     const distance = this.numpadState.moveDistance;
 
-    log.info(LOGPREFIX, `key: ${kbdevent.key}, move distance: ${distance}`);
+    const keyCode = kbdevent.key;
+    const keyHex = kbdevent.key.toString(16);
+    log.info(
+      LOGPREFIX,
+      `Receiveed keyCode: 0x${keyHex} = ${keyCode}, current move distance: ${distance}`
+    );
 
-    switch (kbdevent.key) {
-      case 86: // -                     (z axis up)
+    switch (keyCode) {
+      case KEY_CODES.KP_MINUS: // -                  (z axis up)
         this.gcodeSender.moveGantryRelative(
           0,
           0,
@@ -105,7 +140,7 @@ export class Actions {
           DEFAULT_MM_PER_MIN
         );
         break;
-      case 87: // +                     (z axis down)
+      case KEY_CODES.KP_PLUS: // +                   (z axis down)
         this.gcodeSender.moveGantryRelative(
           0,
           0,
@@ -113,7 +148,7 @@ export class Actions {
           DEFAULT_MM_PER_MIN
         );
         break;
-      case 92: // arrow: left (4)       (move -X)
+      case KEY_CODES.KP_4: // arrow: left (4)        (move -X)
         this.gcodeSender.moveGantryRelative(
           -distance,
           0,
@@ -121,7 +156,7 @@ export class Actions {
           DEFAULT_MM_PER_MIN
         );
         break;
-      case 94: // arrow: right (6)      (move +X)
+      case KEY_CODES.KP_6: // arrow: right (6)       (move +X)
         this.gcodeSender.moveGantryRelative(
           +distance,
           0,
@@ -129,7 +164,7 @@ export class Actions {
           DEFAULT_MM_PER_MIN
         );
         break;
-      case 96: // arrow: up (8)         (move +Y)
+      case KEY_CODES.KP_8: // arrow: up (8)          (move +Y)
         this.gcodeSender.moveGantryRelative(
           0,
           +distance,
@@ -137,7 +172,7 @@ export class Actions {
           DEFAULT_MM_PER_MIN
         );
         break;
-      case 90: // arrow: down (2)       (move -Y)
+      case KEY_CODES.KP_2: // arrow: down (2)        (move -Y)
         this.gcodeSender.moveGantryRelative(
           0,
           -distance,
@@ -145,7 +180,7 @@ export class Actions {
           DEFAULT_MM_PER_MIN
         );
         break;
-      case 89: // arrow: End (1)        (move -X and -Y)
+      case KEY_CODES.KP_1: // arrow: End (1)         (move -X and -Y)
         this.gcodeSender.moveGantryRelative(
           -distance,
           -distance,
@@ -153,56 +188,56 @@ export class Actions {
           DEFAULT_MM_PER_MIN
         );
         break;
-      case 97: // arrow: Page up (9)    (move +X and +Y)
+      case KEY_CODES.KP_9: // arrow: Page up (9)     (move +X and +Y)
         this.gcodeSender.moveGantryRelative(
           +distance,
-          +distance,
-          0,
-          DEFAULT_MM_PER_MIN
-        );
-        break;
-      case 91: // arrow: Page Down (3)  (move +X and -Y)
-        this.gcodeSender.moveGantryRelative(
-          +distance,
-          -distance,
-          0,
-          DEFAULT_MM_PER_MIN
-        );
-        break;
-      case 95: // Key 7: Home (7)       (move -X and +Y)
-        this.gcodeSender.moveGantryRelative(
-          -distance,
           +distance,
           0,
           DEFAULT_MM_PER_MIN
         );
         break;
-      case 93: // Key: 5                (move to work home)
+      case KEY_CODES.KP_3: // arrow: Page Down (3)   (move +X and -Y)
+        this.gcodeSender.moveGantryRelative(
+          +distance,
+          -distance,
+          0,
+          DEFAULT_MM_PER_MIN
+        );
+        break;
+      case KEY_CODES.KP_7: // Key 7: Home (7)        (move -X and +Y)
+        this.gcodeSender.moveGantryRelative(
+          -distance,
+          +distance,
+          0,
+          DEFAULT_MM_PER_MIN
+        );
+        break;
+      case KEY_CODES.KP_5: // Key: 5                 (move to work home)
         this.gcodeSender.moveGantryWCSHomeXY();
         break;
-      case 43: // Key: Tab              (stop)
+      case KEY_CODES.TAB: // Key: Tab                (stop)
         this.gcodeSender.controllerStop();
         break;
-      case 98: // Key: 0                (unlock)
+      case KEY_CODES.KP_0: // Key: 0                 (unlock)
         this.gcodeSender.controllerUnlock();
         break;
-      case 99: // Key: Comma            (probe)
+      case KEY_CODES.KP_PERIOD: // Key: Period/Comma (probe)
         this.gcodeSender.performZProbing();
         break;
-      case 88: // Key: Enter            (homing)
+      case KEY_CODES.KP_ENTER: // Key: Enter         (homing)
         this.gcodeSender.performHoming();
         break;
-      case 83: // Numlock               (set work position for x and y to zero)
+      case KEY_CODES.NUMLOCKCLEAR: // Numlock        (set work position for x and y to zero)
         this.gcodeSender.recordGantryZeroWCSX();
         this.gcodeSender.recordGantryZeroWCSY();
         break;
-      case 84: // key: /                (set move distance to 0.1)
+      case KEY_CODES.KP_DIVIDE: // key: /            (set move distance to 0.1)
         this.numpadState.moveDistance = 0.1;
         break;
-      case 85: // key: *                (set move distance to 1)
+      case KEY_CODES.KP_MULTIPLY: // key: *          (set move distance to 1)
         this.numpadState.moveDistance = 1;
         break;
-      case 42: // key: Backspace        (set move distance to 10)
+      case KEY_CODES.BACKSPACE: // key: Backspace    (set move distance to 10)
         this.numpadState.moveDistance = 10;
         break;
       default:
