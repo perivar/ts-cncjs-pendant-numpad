@@ -217,7 +217,7 @@ export class GcodeSender {
   // execute a probe operation
   //--------------------------------------------------
   performZProbing() {
-    const dz = Number(this.options.zProbeThickness) + 0.001;
+    const dz = Number(this.options.zProbeThickness); // add 0.001 in case of zero?
     this.sendMessage('command', 'gcode', 'G91'); // relative coordinates
     this.sendMessage('command', 'gcode', 'G38.2 Z-50 F120'); // probe toward stock
     this.sendMessage('command', 'gcode', `G10 L20 P1 Z${dz}`); // state that current Z is `dz`
@@ -225,8 +225,8 @@ export class GcodeSender {
     this.sendMessage('command', 'gcode', 'G90'); // back to absolute coordinates
   }
 
-  performZProbingTimes2() {
-    const dz = Number(this.options.zProbeThickness) + 0.001;
+  performZProbingTwice() {
+    const dz = Number(this.options.zProbeThickness); // add 0.001 in case of zero?
 
     this.sendMessage('command', 'gcode', 'G21'); // set to millimeters
     this.sendMessage('command', 'gcode', 'G90'); // absolute coordinates

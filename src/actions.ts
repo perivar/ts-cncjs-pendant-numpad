@@ -174,7 +174,7 @@ export class Actions {
         this.gcodeSender.controllerUnlock();
         break;
       case KEY_CODES.KP_PERIOD: // Key: Period/Comma (probe)
-        this.gcodeSender.performZProbing();
+        this.gcodeSender.performZProbingTwice();
         break;
       case KEY_CODES.KP_ENTER: // Key: Enter         (homing)
         this.gcodeSender.performHoming();

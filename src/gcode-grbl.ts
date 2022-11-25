@@ -44,10 +44,9 @@ export class GcodeGrbl extends GcodeSender {
             `Probe data found: [X${this.zProbeRecord.x} Y${this.zProbeRecord.y} Z${this.zProbeRecord.z}]`
           );
 
-          // The actual Z position is the detected position, but additionally
-          // the thickness of the plate. This assumes Z is negative, and makes
-          // it more so. This works for me; is this a safe assumption?
-          const dz = this.zProbeRecord.z - Number(this.options.zProbeThickness);
+          // disable the setting of new z position, but keep the recording of the probe position
+	  /*
+          const dz = Number(this.options.zProbeThickness);
           this.sendMessage('command', 'gcode', 'G91'); // relative coordinates
           this.sendMessage('command', 'gcode', `G10 L20 P1 Z${dz}`); // state that current Z is `dz`
           this.sendMessage(
@@ -56,6 +55,7 @@ export class GcodeGrbl extends GcodeSender {
             `G0 Z${this.retractionDistance}`
           ); // lift up just a bit
           this.sendMessage('command', 'gcode', 'G90'); // back to absolute coordinates
+          */
         }
       }
     });
@@ -113,6 +113,8 @@ export class GcodeGrbl extends GcodeSender {
   //  we're going to leave the probing operation incomplete, and complete it
   //  in the callback.
   //----------------------------------------------------------------------------
+// disable the special probe function but keep the recording of the probe position in the listener
+/*
   override performZProbing() {
     this.sendMessage('command', 'gcode', 'G91'); // relative coordinates
 
@@ -125,6 +127,7 @@ export class GcodeGrbl extends GcodeSender {
     this.sendMessage('command', 'gcode', 'G90'); // back to absolute coordinates
     // Stop! Now let's wait for the callback to finish setting up.
   }
+*/
 } // class GcodeGrbl;
 
 //----------------------------------------------------------------------------
