@@ -50,12 +50,27 @@ export interface Options {
   vendorId: string;
   productId: string;
   zProbeThickness: string;
+  defaultFeedrate: string;
+
   actionsMap: ActionsMappings;
 }
 
 const decimalToHex = (d: number) =>
   '0x' + Number(d).toString(16).padStart(4, '0');
 
+const logDevice = (hidDevice: hid.Device) => {
+  log.info(LOGPREFIX, `Manufacturer: ${hidDevice.manufacturer}`);
+  log.info(
+    LOGPREFIX,
+    `VendorId: ${decimalToHex(hidDevice.vendorId)} (${hidDevice.vendorId})`
+  );
+  log.info(
+    LOGPREFIX,
+    `ProductId: ${decimalToHex(hidDevice.productId)} (${hidDevice.productId})`
+  );
+  log.info(LOGPREFIX, `Interface: ${hidDevice.interface}`);
+  log.info(LOGPREFIX, `Path: ${hidDevice.path}`);
+};
 //----------------------------------------------------------------------------
 // Execute the command line program.
 //----------------------------------------------------------------------------
@@ -68,7 +83,6 @@ export function startCLI() {
     .opts() as Options;
 
   cliOptions['simulate'] = program.args[0] === 'simulate';
-  cliOptions['actionsMap'] = {};
 
   configureLogging(cliOptions);
 
@@ -94,20 +108,13 @@ export function startCLI() {
     if (cliOptions.vendorId && cliOptions.productId) {
       const hidDevice = findHID(cliOptions.vendorId, cliOptions.productId);
       if (hidDevice) {
-        log.info(LOGPREFIX, `Manufacturer: ${hidDevice.manufacturer}`);
-        log.info(LOGPREFIX, `VendorId: ${decimalToHex(hidDevice.vendorId)}`);
-        log.info(LOGPREFIX, `ProductId: ${decimalToHex(hidDevice.productId)}`);
-        log.info(LOGPREFIX, `Interface: ${hidDevice.interface}`);
-        log.info(LOGPREFIX, `Path: ${hidDevice.path}`);
+        logDevice(hidDevice);
       }
     } else {
       const devices = hid.devices();
       devices.forEach(hidDevice => {
-        log.info(LOGPREFIX, `Manufacturer: ${hidDevice.manufacturer}`);
-        log.info(LOGPREFIX, `VendorId: ${decimalToHex(hidDevice.vendorId)}`);
-        log.info(LOGPREFIX, `ProductId: ${decimalToHex(hidDevice.productId)}`);
-        log.info(LOGPREFIX, `Interface: ${hidDevice.interface}`);
-        log.info(LOGPREFIX, `Path: ${hidDevice.path}\n`);
+        logDevice(hidDevice);
+        log.info(LOGPREFIX, `----------------------`);
       });
     }
 
@@ -121,19 +128,24 @@ export function startCLI() {
     getFileOptions(optVersion)
   );
 
-  if (!options.secret && process.env['CNCJS_SECRET']) {
-    options.secret = process.env['CNCJS_SECRET'];
-  }
-
   if (!options.port) {
     if (options.simulate) {
       log.info(LOGPREFIX, `Simulating with dummy port: dummyPort`);
       options.port = 'dummyPort';
     } else {
       log.error(LOGPREFIX, `No port specified!`);
-      console.log(
-        `Use '${program.name()} --help' if you're expecting to see something else here.`
-      );
+      serialport
+        .list()
+        .then(ports => {
+          log.info(LOGPREFIX, `Please specify one of these using --port`);
+          ports.forEach(port => {
+            log.info(LOGPREFIX, `${port.path}`);
+          });
+        })
+        .catch(err => {
+          log.error(LOGPREFIX, err);
+        });
+
       return;
     }
   }
@@ -144,6 +156,9 @@ export function startCLI() {
   console.log(
     `Use '${program.name()} --help' if you're expecting to see something else here.`
   );
+
+  console.log(`Using default feedrate: ${options.defaultFeedrate}`);
+  console.log(`Using Z Probe Thickness: ${options.zProbeThickness}`);
 
   log.trace(LOGPREFIX, 'Creating the Numpad instance.');
   const numpadController = new NumpadController(options);
@@ -171,15 +186,10 @@ function configureCLI(cli: Command, version: string) {
     .usage('[options] [run|simulate]')
 
     .option('-p, --port <port>', 'path or name of serial port')
-    .option(
-      '-b, --baudrate <baudrate>',
-      'baud rate (default: 115200)',
-      '115200'
-    )
+    .option('-b, --baudrate <baudrate>', 'baud rate (default: 115200)')
     .option(
       '--controller-type <type>',
-      'controller type: Grbl|Smoothie|TinyG (default: Grbl)',
-      'Grbl'
+      'controller type: Grbl|Smoothie|TinyG (default: Grbl)'
     )
     .option(
       '-s, --secret',
@@ -187,14 +197,12 @@ function configureCLI(cli: Command, version: string) {
     )
     .option(
       '--socket-address <address>',
-      'socket address or hostname (default: localhost)',
-      'localhost'
+      'socket address or hostname (default: localhost)'
     )
-    .option('--socket-port <port>', 'socket port (default: 8000)', '8000')
+    .option('--socket-port <port>', 'socket port (default: 8000)')
     .option(
       '--access-token-lifetime <lifetime>',
-      'access token lifetime in seconds or a time span string (default: 30d)',
-      '30d'
+      'access token lifetime in seconds or a time span string (default: 30d)'
     )
     .option(
       '-v, --verbose',
@@ -212,13 +220,9 @@ function configureCLI(cli: Command, version: string) {
     )
     .option('--vendorId <vendor>', 'Vendor ID of USB HID device')
     .option('--productId <product>', 'Product ID of USB HID device')
-    .option(
-      '--zProbeThickness <offset>',
-      'offset (thickness) for Z probe',
-      '19.5'
-    )
+    .option('--zProbeThickness <offset>', 'offset (thickness) for Z probe')
+    .option('--defaultFeedrate <feedrate>', 'default feedrate for movements');
 
-    .arguments('[action]');
   return cli;
 }
 
@@ -285,30 +289,34 @@ function getFileOptions(optionsVersion: string): Options {
 function mergeOptions(cliOptions: Options, fileOptions: Options): Options {
   // Determine which option value to use in the program.
   function winningValue(optionName: string): any {
-    if (cliOptions[optionName]) {
-      return cliOptions[optionName];
-    }
-    return fileOptions[optionName] || cliOptions[optionName];
+    return cliOptions[optionName] || fileOptions[optionName];
   }
+
+  console.log(cliOptions);
 
   const result = {
     simulate: winningValue('simulate'),
     port: winningValue('port'),
-    baudrate: winningValue('baudrate'),
-    controllerType: winningValue('controllerType'),
-    secret: winningValue('secret'),
-    socketAddress: winningValue('socketAddress'),
-    socketPort: winningValue('socketPort'),
-    accessTokenLifetime: winningValue('accessTokenLifetime'),
+
+    baudrate: winningValue('baudrate') || 115200,
+    controllerType: winningValue('controllerType') || 'Grbl',
+    secret: winningValue('secret') || process.env['CNCJS_SECRET'],
+    socketAddress: winningValue('socketAddress') || 'localhost',
+    socketPort: winningValue('socketPort') || 8000,
+    accessTokenLifetime: winningValue('accessTokenLifetime') || '30d',
+
     verbose: winningValue('verbose'),
 
     list: winningValue('list'),
     devicelist: winningValue('devicelist'),
+
     vendorId: winningValue('vendorId'),
     productId: winningValue('productId'),
-    zProbeThickness: winningValue('zProbeThickness'),
 
-    actionsMap: fileOptions['actionsMap'],
+    zProbeThickness: winningValue('zProbeThickness') || '19.5',
+    defaultFeedrate: winningValue('defaultFeedrate') || '2000',
+
+    actionsMap: fileOptions['actionsMap'] || {},
   };
   return result;
 }

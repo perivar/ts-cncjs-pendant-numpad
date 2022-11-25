@@ -34,6 +34,7 @@ export class GcodeSender {
   connector: Connector;
 
   // these are used by child gcode senders
+  feedrate: number;
   zsafepos: number;
   probeDistance: number;
   probeFastFeedrate: number;
@@ -43,6 +44,9 @@ export class GcodeSender {
   constructor(actions: Actions) {
     this.options = actions.options;
     this.connector = actions.connector;
+
+    // read feedrate from options
+    this.feedrate = Number(this.options.defaultFeedrate);
 
     // set to default values
     this.zsafepos = ZSAFEPOS;
@@ -140,28 +144,30 @@ export class GcodeSender {
   //--------------------------------------------------
   // move gantry: relative movement (jogging)
   //--------------------------------------------------
-  moveGantryJogToXYZ(x: number, y: number, z: number, mmPerMin?: number) {
+  moveGantryJogToXYZ(
+    x: number,
+    y: number,
+    z: number,
+    mmPerMin = this.feedrate
+  ) {
     this.moveGantryRelative(x, y, z, mmPerMin);
   }
 
   //--------------------------------------------------
   // move gantry: relative movement
   //--------------------------------------------------
-  moveGantryRelative(x: number, y: number, z: number, mmPerMin?: number) {
+  moveGantryRelative(
+    x: number,
+    y: number,
+    z: number,
+    mmPerMin = this.feedrate
+  ) {
     this.sendMessage('command', 'gcode', 'G21'); // set to millimeters
-    if (mmPerMin) {
-      this.sendMessage(
-        'command',
-        'gcode',
-        `G91 G0 X${x.toFixed(4)} Y${y.toFixed(4)} Z${z.toFixed(4)} F${mmPerMin}`
-      );
-    } else {
-      this.sendMessage(
-        'command',
-        'gcode',
-        `G91 G0 X${x.toFixed(4)} Y${y.toFixed(4)} Z${z.toFixed(4)}`
-      );
-    }
+    this.sendMessage(
+      'command',
+      'gcode',
+      `G91 G0 X${x.toFixed(4)} Y${y.toFixed(4)} Z${z.toFixed(4)} F${mmPerMin}`
+    );
     this.sendMessage('command', 'gcode', 'G90'); // back to absolute coordinates
   }
 

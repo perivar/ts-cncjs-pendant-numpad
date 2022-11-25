@@ -29,7 +29,10 @@ export class GcodeGrbl extends GcodeSender {
   //----------------------------------------------------------------------------
   constructor(actions: Actions) {
     super(actions);
+
     this.zProbeRecord = new ZProbeRecord();
+
+    // listen for probe results and trigger setting the z position
     this.connector.subscribeMessage('serialport:read', (data: string) => {
       if (this.zProbeRecord.isValidString(data)) {
         log.info(LOGPREFIX, `Trying to read probe string: ${data}`);
@@ -68,25 +71,19 @@ export class GcodeGrbl extends GcodeSender {
     x: number,
     y: number,
     z: number,
-    mmPerMin?: number
+    mmPerMin = this.feedrate
   ) {
     this.sendMessage('command', 'gcode', 'G21'); // set to millimeters
     this.sendMessage('command', 'gcode', `G91`);
-    if (mmPerMin) {
-      this.sendMessage(
-        'command',
-        'gcode',
-        `$J=X${x.toFixed(4)} Y${y.toFixed(4)} Z${z.toFixed(4)} F${
-          mmPerMin * 0.98
-        }`
-      );
-    } else {
-      this.sendMessage(
-        'command',
-        'gcode',
-        `$J=X${x.toFixed(4)} Y${y.toFixed(4)} Z${z.toFixed(4)}`
-      );
-    }
+
+    this.sendMessage(
+      'command',
+      'gcode',
+      `$J=X${x.toFixed(4)} Y${y.toFixed(4)} Z${z.toFixed(4)} F${
+        mmPerMin * 0.98
+      }`
+    );
+
     this.sendMessage('command', 'gcode', 'G90'); // back to absolute coordinates
   }
 
