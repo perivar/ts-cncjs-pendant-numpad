@@ -167,8 +167,10 @@ export class Actions {
       case KEY_CODES.KP_5: // Key: 5                 (move to work home)
         this.gcodeSender.moveGantryWCSHomeXY();
         break;
-      case KEY_CODES.TAB: // Key: Tab                (stop)
-        this.gcodeSender.controllerStop();
+      case KEY_CODES.TAB: // Key: Tab                (set work position to zero)
+        this.gcodeSender.recordGantryZeroWCSX();
+        this.gcodeSender.recordGantryZeroWCSY();
+        this.gcodeSender.recordGantryZeroWCSZ();
         break;
       case KEY_CODES.KP_0: // Key: 0                 (unlock)
         this.gcodeSender.controllerUnlock();
