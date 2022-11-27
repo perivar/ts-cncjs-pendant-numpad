@@ -45,7 +45,7 @@ export class GcodeGrbl extends GcodeSender {
           );
 
           // disable the setting of new z position, but keep the recording of the probe position
-	  /*
+          /*
           const dz = Number(this.options.zProbeThickness);
           this.sendMessage('command', 'gcode', 'G91'); // relative coordinates
           this.sendMessage('command', 'gcode', `G10 L20 P1 Z${dz}`); // state that current Z is `dz`
@@ -113,8 +113,8 @@ export class GcodeGrbl extends GcodeSender {
   //  we're going to leave the probing operation incomplete, and complete it
   //  in the callback.
   //----------------------------------------------------------------------------
-// disable the special probe function but keep the recording of the probe position in the listener
-/*
+  // disable the special probe function but keep the recording of the probe position in the listener
+  /*
   override performZProbing() {
     this.sendMessage('command', 'gcode', 'G91'); // relative coordinates
 
