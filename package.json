@@ -1,5 +1,5 @@
 {
-  "name": "csncjs-pendant-numpad",
+  "name": "cncjs-pendant-numpad",
   "description": "A simple logilink numpad pendant for cncjs.",
   "keywords": [
     "cncjs",
@@ -30,9 +30,10 @@
   "scripts": {
     "build-ts": "tsc",
     "copy-files": "cpy 'src/*.json' lib",
-    "build": "rimraf ./lib && npm run build-ts && npm run copy-files",
+    "build": "rimraf ./lib && npm run version && npm run build-ts && npm run copy-files",
     "start:dev": "nodemon",
     "start": "npm run build && node bin/cncjs-pendant-numpad",
+    "version": "genversion --es6 --semi src/version.ts && git add src/version.ts",
     "lint": "eslint '**/*.{js,ts}'",
     "lint-fix": "eslint '**/*.{js,ts}' --fix",
     "format": "prettier --check \"**/*.{js,ts}\"",
@@ -49,14 +50,14 @@
   },
   "dependencies": {
     "commander": "^7.0.0",
+    "deepmerge": "^4.2.2",
     "inquirer": "^7.0.0",
     "jsonwebtoken": "^8.5.1",
     "lodash": "^4.17.21",
     "node-hid": "^2.1.2",
     "npmlog": "^5.0.0",
     "serialport": "^9.0.0",
-    "socket.io-client": "^2.5.0",
-    "deepmerge": "^4.2.2"
+    "socket.io-client": "^2.5.0"
   },
   "devDependencies": {
     "@types/inquirer": "^7.0.0",
@@ -75,6 +76,7 @@
     "eslint-plugin-prettier": "^3.0.0",
     "eslint-plugin-simple-import-sort": "^8.0.0",
     "eslint-plugin-unused-imports": "^1.0.0",
+    "genversion": "^3.1.1",
     "nodemon": "^2.0.20",
     "onchange": "^7.1.0",
     "prettier": "^2.7.1",

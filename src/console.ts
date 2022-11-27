@@ -16,11 +16,11 @@ import os from 'os';
 import path from 'path';
 import process from 'process';
 import serialport from 'serialport';
-import { URL } from 'url';
 
 import { Actions, ActionsMappings } from './actions';
 import { Connector } from './connector';
 import { findHID, NumpadController } from './numpad_controller';
+import { version } from './version';
 
 //----------------------------------------------------------------------------
 // Constant definitions.
@@ -55,6 +55,13 @@ export interface Options {
   actionsMap: ActionsMappings;
 }
 
+function Err(e: unknown): NodeJS.ErrnoException {
+  if (e instanceof Error) {
+    return e as NodeJS.ErrnoException;
+  }
+  throw new Error(`Unexpected Throw: ${typeof e}`);
+}
+
 const decimalToHex = (d: number) =>
   '0x' + Number(d).toString(16).padStart(4, '0');
 
@@ -74,9 +81,6 @@ const logDevice = (hidDevice: hid.Device) => {
 // Execute the command line program.
 //----------------------------------------------------------------------------
 export function startCLI() {
-  const packagejson = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-  const version = packagejson.version;
-
   const cliOptions = configureCLI(program as Command, version)
     .parse()
     .opts() as Options;
@@ -229,12 +233,19 @@ function loadOptionsFile(
   filename: fs.PathLike,
   optionsVersion: string
 ): Options {
+  // Check that the file exists locally
+  if (!fs.existsSync(filename)) {
+    log.info(LOGPREFIX, 'Failed! No config file at:', filename);
+    return {} as Options;
+  } else {
+    log.info(LOGPREFIX, 'Success! Found config file at:', filename);
+  }
   try {
     const rawData = fs.readFileSync(filename, 'utf8');
     const result = JSON.parse(rawData)[optionsVersion];
     return result || ({} as Options);
   } catch (err) {
-    // log.warn(LOGPREFIX, err as any);
+    log.error(LOGPREFIX, err as any);
     return {} as Options;
   }
 }
@@ -252,16 +263,14 @@ function getFileOptions(optionsVersion: string): Options {
       optionsVersion
     );
     const dfltOpts = loadOptionsFile(
-      // new URL('cncjs-pendant-numpad.rc.json', import.meta.url),
-      new URL('cncjs-pendant-numpad.rc.json'),
+      path.resolve(__dirname, 'cncjs-pendant-numpad.rc.json'),
       optionsVersion
     );
     const result = merge.all([dfltOpts, userOpts]);
     return result as Options;
   } else {
     const dfltOpts = loadOptionsFile(
-      // new URL('cncjs-pendant-numpad.rc.json', import.meta.url),
-      path.resolve('.', 'lib', 'cncjs-pendant-numpad.rc.json'),
+      path.resolve(__dirname, 'cncjs-pendant-numpad.rc.json'),
       optionsVersion
     );
     const systOpts = loadOptionsFile(
