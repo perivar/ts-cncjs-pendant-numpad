@@ -218,6 +218,7 @@ export class Actions {
           ai.move_z_axis = -distance * jogVelocityZ;
           break;
         case KEY_CODES.KP_4: // arrow: left (4)        (move -X)
+          ai.move_x_axis = -distance * jogVelocity;
           if (isJustPressed) {
             clearTimeout(this.jogTimer);
             const d = creepDist * -distance;
@@ -226,11 +227,10 @@ export class Actions {
               this.jogFunction.bind(this),
               CREEP_INTERVAL
             );
-          } else {
-            ai.move_x_axis = -distance * jogVelocity;
           }
           break;
         case KEY_CODES.KP_6: // arrow: right (6)       (move +X)
+          ai.move_x_axis = +distance * jogVelocity;
           if (isJustPressed) {
             clearTimeout(this.jogTimer);
             const d = creepDist * +distance;
@@ -239,11 +239,10 @@ export class Actions {
               this.jogFunction.bind(this),
               CREEP_INTERVAL
             );
-          } else {
-            ai.move_x_axis = +distance * jogVelocity;
           }
           break;
         case KEY_CODES.KP_8: // arrow: up (8)          (move +Y)
+          ai.move_y_axis = +distance * jogVelocity;
           if (isJustPressed) {
             clearTimeout(this.jogTimer);
             const d = creepDist * +distance;
@@ -252,11 +251,10 @@ export class Actions {
               this.jogFunction.bind(this),
               CREEP_INTERVAL
             );
-          } else {
-            ai.move_y_axis = +distance * jogVelocity;
           }
           break;
         case KEY_CODES.KP_2: // arrow: down (2)        (move -Y)
+          ai.move_y_axis = -distance * jogVelocity;
           if (isJustPressed) {
             clearTimeout(this.jogTimer);
             const d = creepDist * -distance;
@@ -265,8 +263,6 @@ export class Actions {
               this.jogFunction.bind(this),
               CREEP_INTERVAL
             );
-          } else {
-            ai.move_y_axis = -distance * jogVelocity;
           }
           break;
         case KEY_CODES.KP_1: // arrow: End (1)         (move -X and -Y)
