@@ -156,7 +156,7 @@ export class Actions {
     const ai = new XYZCoords(); // mm to move each axis.
 
     // Get move distance modifier
-    const distance = this.numpadState.moveDistance;
+    let distance = this.numpadState.moveDistance;
 
     const keyCode = kbdevent.key;
     const keyHex = kbdevent.key.toString(16);
@@ -204,6 +204,9 @@ export class Actions {
 
       const jogVelocityZ = VZ_MED;
       // const creepDistZ = CZ_MED;
+
+      // ensure we are only moving the default distance
+      distance = DEFAULT_MOVE_DISTANCE;
 
       switch (keyCode) {
         case KEY_CODES.KP_MINUS: // -                  (z axis up +Z)
