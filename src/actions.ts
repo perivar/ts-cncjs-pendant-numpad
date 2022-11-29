@@ -175,13 +175,6 @@ export class Actions {
       `Receiveed keyCode: 0x${keyHex} = ${keyCode}, current move distance: ${distance}`
     );
 
-    // if (
-    //   this.numpadState.previousKeyCode !== undefined &&
-    //   keyCode === KEY_CODES.KEYCODE_UNKNOWN
-    // ) {
-    //   // not any longer holding in the key
-    // }
-
     const SMOOTH = true;
     if (SMOOTH) {
       //------------------------------------------------------------
@@ -192,7 +185,7 @@ export class Actions {
       //------------------------------------------------------------
 
       const jogVelocity = VXY_MED;
-      // const creepDist = CXY_MED;
+      const creepDist = CXY_MED;
 
       //------------------------------------------------------------
       // Determine appropriate jog and creep values for the Z axis.
@@ -203,10 +196,19 @@ export class Actions {
       //------------------------------------------------------------
 
       const jogVelocityZ = VZ_MED;
-      // const creepDistZ = CZ_MED;
+      const creepDistZ = CZ_MED;
 
       // ensure we are only moving the default distance
       distance = DEFAULT_MOVE_DISTANCE;
+
+      let isJustPressed = false;
+      if (
+        this.numpadState.previousKeyCode !== undefined &&
+        keyCode !== this.numpadState.previousKeyCode
+      ) {
+        // new key pressed
+        isJustPressed = true;
+      }
 
       switch (keyCode) {
         case KEY_CODES.KP_MINUS: // -                  (z axis up +Z)
@@ -216,16 +218,56 @@ export class Actions {
           ai.move_z_axis = -distance * jogVelocityZ;
           break;
         case KEY_CODES.KP_4: // arrow: left (4)        (move -X)
-          ai.move_x_axis = -distance * jogVelocity;
+          if (isJustPressed) {
+            clearTimeout(this.jogTimer);
+            const d = creepDist * -distance;
+            this.jogGantry(d, 0, 0);
+            this.jogTimer = setTimeout(
+              this.jogFunction.bind(this),
+              CREEP_INTERVAL
+            );
+          } else {
+            ai.move_x_axis = -distance * jogVelocity;
+          }
           break;
         case KEY_CODES.KP_6: // arrow: right (6)       (move +X)
-          ai.move_x_axis = +distance * jogVelocity;
+          if (isJustPressed) {
+            clearTimeout(this.jogTimer);
+            const d = creepDist * +distance;
+            this.jogGantry(d, 0, 0);
+            this.jogTimer = setTimeout(
+              this.jogFunction.bind(this),
+              CREEP_INTERVAL
+            );
+          } else {
+            ai.move_x_axis = +distance * jogVelocity;
+          }
           break;
         case KEY_CODES.KP_8: // arrow: up (8)          (move +Y)
-          ai.move_y_axis = +distance * jogVelocity;
+          if (isJustPressed) {
+            clearTimeout(this.jogTimer);
+            const d = creepDist * +distance;
+            this.jogGantry(0, d, 0);
+            this.jogTimer = setTimeout(
+              this.jogFunction.bind(this),
+              CREEP_INTERVAL
+            );
+          } else {
+            ai.move_y_axis = +distance * jogVelocity;
+          }
           break;
         case KEY_CODES.KP_2: // arrow: down (2)        (move -Y)
-          ai.move_y_axis = -distance * jogVelocity;
+          if (isJustPressed) {
+            clearTimeout(this.jogTimer);
+            const d = creepDist * -distance;
+            this.jogGantry(0, d, 0);
+            this.jogTimer = setTimeout(
+              this.jogFunction.bind(this),
+              CREEP_INTERVAL
+            );
+          } else {
+            ai.move_y_axis = -distance * jogVelocity;
+          }
           break;
         case KEY_CODES.KP_1: // arrow: End (1)         (move -X and -Y)
           ai.move_x_axis = -distance * jogVelocity;
@@ -278,7 +320,8 @@ export class Actions {
       }
 
       // store current key in state
-      this.numpadState.previousKeyCode = keyCode;
+      if (keyCode !== KEY_CODES.KEYCODE_UNKNOWN)
+        this.numpadState.previousKeyCode = keyCode;
 
       //==================================================
       // The timer function will pick these up and act
@@ -353,7 +396,8 @@ export class Actions {
       }
 
       // store current key in state
-      this.numpadState.previousKeyCode = keyCode;
+      if (keyCode !== KEY_CODES.KEYCODE_UNKNOWN)
+        this.numpadState.previousKeyCode = keyCode;
     }
   }
 
