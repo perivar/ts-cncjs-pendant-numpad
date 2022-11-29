@@ -26,8 +26,8 @@ const LOGPREFIX = 'ACTIONS  '; // keep at 9 digits for consistency
 // can be dangerous at high speeds as well as have an unresponsive feel, and
 // intervals that are too short might result in unsmooth motion.
 const JOG_INTERVAL = 100; // ms/interval; there are 60,000 ms/min.
-const VXY_LOW = (300 * JOG_INTERVAL) / 60000; // mm/minute in terms of mm/interval, slow velocity.
-const VXY_MED = (3000 * JOG_INTERVAL) / 60000; // mm/minute in terms of mm/interval, medium velocity.
+const VXY_LOW = (250 * JOG_INTERVAL) / 60000; // mm/minute in terms of mm/interval, slow velocity.
+const VXY_MED = (2000 * JOG_INTERVAL) / 60000; // mm/minute in terms of mm/interval, medium velocity.
 const CXY_LOW = 0.5; // single impulse distance, slow.
 const CXY_MED = 1.0; // single impluse distance, medium.
 const VZ_LOW = (250 * JOG_INTERVAL) / 60000; // mm/minute in terms of mm/interval, z-axis,
@@ -176,7 +176,7 @@ export class Actions {
     );
 
     const SMOOTH = true;
-    const SLOW = true;
+    const SLOW = false;
     if (SMOOTH) {
       //------------------------------------------------------------
       // Determine appropriate jog and creep values for the axes
