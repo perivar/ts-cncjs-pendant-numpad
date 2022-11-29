@@ -21,26 +21,19 @@ import { KeyboardEvent, NumpadController } from './numpad_controller';
 //------------------------------------------------------------------------------
 const LOGPREFIX = 'ACTIONS  '; // keep at 9 digits for consistency
 
-// We don't have true continuous motor control, so we will simulate it with
-// a timer and sending motion comments at specific intervals. Long intervals
-// can be dangerous at high speeds as well as have an unresponsive feel, and
-// intervals that are too short might result in unsmooth motion.
-const JOG_INTERVAL = 100; // ms/interval; there are 60,000 ms/min.
-const VXY_LOW = (250 * JOG_INTERVAL) / 60000; // mm/minute in terms of mm/interval, slow velocity.
-const VXY_MED = (2500 * JOG_INTERVAL) / 60000; // mm/minute in terms of mm/interval, medium velocity.
-const CXY_LOW = 0.5; // single impulse distance, slow.
-const CXY_MED = 1.0; // single impluse distance, medium.
-const VZ_LOW = (250 * JOG_INTERVAL) / 60000; // mm/minute in terms of mm/interval, z-axis,
-const VZ_MED = (500 * JOG_INTERVAL) / 60000; // mm/minute in terms of mm/interval, z-axis,
-const CZ_LOW = 0.1; // single impulse distance, z-axis.
-const CZ_MED = 1.0; // single impulse distance, z-axis.
+const SINGLESTEP_LARGE_JOGDISTANCE = 10; // large jog step in mm
+const SINGLESTEP_MEDIUM_JOGDISTANCE = 1; // medium jog step in mm
+const SINGLESTEP_SMALL_JOGDISTANCE = 0.1; // small jog step in mm
 
-const CREEP_INTERVAL = 250; // delay before continuous movement.
+const SMOOTHJOG_COMMANDS_INTERVAL = 150; // period in ms at which the $J jogging commands are sent to the machine
+const SMOOTHJOG_JOGSPEED = 2000; // mm per min
+const SMOOTHJOG_JOGSTEP =
+  SMOOTHJOG_JOGSPEED * (SMOOTHJOG_COMMANDS_INTERVAL / 60000);
 
 //------------------------------------------------------------------------------
 // Represents the instantaneous state of the numpad.
 //------------------------------------------------------------------------------
-export const DEFAULT_MOVE_DISTANCE = 1;
+export const DEFAULT_MOVE_DISTANCE = SINGLESTEP_MEDIUM_JOGDISTANCE;
 interface NumpadState {
   moveDistance: number;
   previousKeyCode?: number;
@@ -49,13 +42,6 @@ interface NumpadState {
 //----------------------------------------------------------------------------
 // Interface definitions.
 //----------------------------------------------------------------------------
-// A simple record that indicates the next jogging motion destination.
-export class XYZCoords {
-  move_x_axis = 0.0;
-  move_y_axis = 0.0;
-  move_z_axis = 0.0;
-}
-
 // An interface for holding actions mappings. Perhaps a bit overly broad.
 export interface ActionsMappings {
   [key: string]: any;
@@ -99,10 +85,12 @@ export class Actions {
   numpadController: NumpadController; // connection to numpad
   options: Options; // program-wide options
   gcodeSender: GcodeSender; // abstraction interface
-  jogTimer: NodeJS.Timer; // jog timer reference
 
   numpadState: NumpadState; // state of current numpad
-  axisInstructions = new XYZCoords(); // next jog movement instructions
+
+  smoothJogging = false;
+  smoothJoggingTimer: NodeJS.Timer; // jog timer reference
+  joggingAck = true;
 
   //----------------------------------------------------------------------------
   // constructor()
@@ -119,8 +107,15 @@ export class Actions {
     // listen for use events
     this.numpadController.on('use', this.onUse.bind(this));
 
-    // schedule the jogFunction to run each JOG_INTERVAL (restarted in jogFunction)
-    this.jogTimer = setTimeout(this.jogFunction.bind(this), JOG_INTERVAL);
+    // listen for ok results to know that jogging worked
+    this.connector.subscribeMessage('serialport:read', (data: string) => {
+      if (
+        !this.joggingAck &&
+        (data.startsWith('ok') || data.startsWith('error:15')) // Error 15: Travel exceeded	Jog target exceeds machine travel. Jog command has been ignored.
+      ) {
+        this.joggingAck = true;
+      }
+    });
   }
 
   //----------------------------------------------------------------------------
@@ -153,8 +148,6 @@ export class Actions {
   // when button combinations are needed.
   //--------------------------------------------------------------------------
   onUse(kbdevent: KeyboardEvent) {
-    const ai = new XYZCoords(); // mm to move each axis.
-
     // Get move distance modifier
     let distance = this.numpadState.moveDistance;
 
@@ -166,312 +159,183 @@ export class Actions {
       `Receiveed keyCode: 0x${keyHex} = ${keyCode}, current move distance: ${distance}`
     );
 
-    const SMOOTH = true;
-    const SLOW = false;
-    if (SMOOTH) {
-      //------------------------------------------------------------
-      // Determine appropriate jog and creep values for the axes
-      // X and Y, determined by the deadman key that's being used.
-      // This isn't enabling motion yet, just selecting a speed in
-      // case we select motion later.
-      //------------------------------------------------------------
+    if (this.smoothJogging) {
+      this.stopSmoothJog();
+      return;
+    }
 
-      const jogVelocity = SLOW ? VXY_LOW : VXY_MED;
-      const creepDist = SLOW ? CXY_LOW : CXY_MED;
+    const isJogging = true;
+    let jogSpeed = SMOOTHJOG_JOGSPEED;
+    if (isJogging) {
+      distance = SMOOTHJOG_JOGSTEP;
+    }
 
-      //------------------------------------------------------------
-      // Determine appropriate jog and creep values for the Z axis.
-      // This is determined by which hat button is used. This isn't
-      // enabling motion yet, just selecting a speed in case we
-      // select motion later, so it doesn't matter if the key we're
-      // testing is doing something else this round.
-      //------------------------------------------------------------
-
-      const jogVelocityZ = SLOW ? VZ_LOW : VZ_MED;
-      const creepDistZ = SLOW ? CZ_LOW : CZ_MED;
-
-      // ensure we are only moving the default distance
-      distance = DEFAULT_MOVE_DISTANCE;
-
-      // let isJustPressed = false;
-      // if (
-      //   this.numpadState.previousKeyCode !== undefined &&
-      //   keyCode !== this.numpadState.previousKeyCode
-      // ) {
-      //   // new key pressed
-      //   isJustPressed = true;
-      // }
-      // always creep
-      const isJustPressed = true;
-
-      switch (keyCode) {
-        case KEY_CODES.KP_MINUS: // -                  (z axis up +Z)
-          ai.move_z_axis = +distance * jogVelocityZ;
-          if (isJustPressed) {
-            clearTimeout(this.jogTimer);
-            this.jogGantry(0, 0, +distance * creepDistZ);
-            this.jogTimer = setTimeout(
-              this.jogFunction.bind(this),
-              CREEP_INTERVAL
-            );
-          }
-          break;
-        case KEY_CODES.KP_PLUS: // +                   (z axis down -Z)
-          ai.move_z_axis = -distance * jogVelocityZ;
-          if (isJustPressed) {
-            clearTimeout(this.jogTimer);
-            this.jogGantry(0, 0, -distance * creepDistZ);
-            this.jogTimer = setTimeout(
-              this.jogFunction.bind(this),
-              CREEP_INTERVAL
-            );
-          }
-          break;
-        case KEY_CODES.KP_4: // arrow: left (4)        (move -X)
-          ai.move_x_axis = -distance * jogVelocity;
-          if (isJustPressed) {
-            clearTimeout(this.jogTimer);
-            this.jogGantry(-distance * creepDist, 0, 0);
-            this.jogTimer = setTimeout(
-              this.jogFunction.bind(this),
-              CREEP_INTERVAL
-            );
-          }
-          break;
-        case KEY_CODES.KP_6: // arrow: right (6)       (move +X)
-          ai.move_x_axis = +distance * jogVelocity;
-          if (isJustPressed) {
-            clearTimeout(this.jogTimer);
-            this.jogGantry(+distance * creepDist, 0, 0);
-            this.jogTimer = setTimeout(
-              this.jogFunction.bind(this),
-              CREEP_INTERVAL
-            );
-          }
-          break;
-        case KEY_CODES.KP_8: // arrow: up (8)          (move +Y)
-          ai.move_y_axis = +distance * jogVelocity;
-          if (isJustPressed) {
-            clearTimeout(this.jogTimer);
-            this.jogGantry(0, +distance * creepDist, 0);
-            this.jogTimer = setTimeout(
-              this.jogFunction.bind(this),
-              CREEP_INTERVAL
-            );
-          }
-          break;
-        case KEY_CODES.KP_2: // arrow: down (2)        (move -Y)
-          ai.move_y_axis = -distance * jogVelocity;
-          if (isJustPressed) {
-            clearTimeout(this.jogTimer);
-            this.jogGantry(0, -distance * creepDist, 0);
-            this.jogTimer = setTimeout(
-              this.jogFunction.bind(this),
-              CREEP_INTERVAL
-            );
-          }
-          break;
-        case KEY_CODES.KP_1: // arrow: End (1)         (move -X and -Y)
-          ai.move_x_axis = -distance * jogVelocity;
-          ai.move_y_axis = -distance * jogVelocity;
-          if (isJustPressed) {
-            clearTimeout(this.jogTimer);
-            this.jogGantry(-distance * creepDist, -distance * creepDist, 0);
-            this.jogTimer = setTimeout(
-              this.jogFunction.bind(this),
-              CREEP_INTERVAL
-            );
-          }
-          break;
-        case KEY_CODES.KP_9: // arrow: Page up (9)     (move +X and +Y)
-          ai.move_x_axis = +distance * jogVelocity;
-          ai.move_y_axis = +distance * jogVelocity;
-          if (isJustPressed) {
-            clearTimeout(this.jogTimer);
-            this.jogGantry(+distance * creepDist, +distance * creepDist, 0);
-            this.jogTimer = setTimeout(
-              this.jogFunction.bind(this),
-              CREEP_INTERVAL
-            );
-          }
-          break;
-        case KEY_CODES.KP_3: // arrow: Page Down (3)   (move +X and -Y)
-          ai.move_x_axis = +distance * jogVelocity;
-          ai.move_y_axis = -distance * jogVelocity;
-          if (isJustPressed) {
-            clearTimeout(this.jogTimer);
-            this.jogGantry(+distance * creepDist, -distance * creepDist, 0);
-            this.jogTimer = setTimeout(
-              this.jogFunction.bind(this),
-              CREEP_INTERVAL
-            );
-          }
-          break;
-        case KEY_CODES.KP_7: // Key 7: Home (7)        (move -X and +Y)
-          ai.move_x_axis = -distance * jogVelocity;
-          ai.move_y_axis = +distance * jogVelocity;
-          if (isJustPressed) {
-            clearTimeout(this.jogTimer);
-            this.jogGantry(-distance * creepDist, +distance * creepDist, 0);
-            this.jogTimer = setTimeout(
-              this.jogFunction.bind(this),
-              CREEP_INTERVAL
-            );
-          }
-          break;
-        case KEY_CODES.KP_5: // Key: 5                 (move to work home)
-          this.gcodeSender.moveGantryWCSHomeXY();
-          break;
-        case KEY_CODES.TAB: // Key: Tab                (set work position to zero)
-          this.gcodeSender.recordGantryZeroWCSX();
-          this.gcodeSender.recordGantryZeroWCSY();
-          this.gcodeSender.recordGantryZeroWCSZ();
-          break;
-        case KEY_CODES.KP_0: // Key: 0                 (unlock)
-          this.gcodeSender.controllerUnlock();
-          break;
-        case KEY_CODES.KP_PERIOD: // Key: Period/Comma (probe)
-          this.gcodeSender.performZProbingTwice();
-          break;
-        case KEY_CODES.KP_ENTER: // Key: Enter         (homing)
-          this.gcodeSender.performHoming();
-          break;
-        case KEY_CODES.NUMLOCKCLEAR: // Numlock        (set work position for x and y to zero)
-          this.gcodeSender.recordGantryZeroWCSX();
-          this.gcodeSender.recordGantryZeroWCSY();
-          break;
-        case KEY_CODES.KP_DIVIDE: // key: /            (set move distance to 0.1)
-          this.numpadState.moveDistance = 0.1;
-          break;
-        case KEY_CODES.KP_MULTIPLY: // key: *          (set move distance to 1)
-          this.numpadState.moveDistance = 1;
-          break;
-        case KEY_CODES.BACKSPACE: // key: Backspace    (set move distance to 10)
-          this.numpadState.moveDistance = 10;
-          break;
-        default:
-          break;
-      }
-
-      // store current key in state
-      if (keyCode !== KEY_CODES.KEYCODE_UNKNOWN)
-        this.numpadState.previousKeyCode = keyCode;
-
-      //==================================================
-      // The timer function will pick these up and act
-      // accordingly.
-      //==================================================
-
-      this.axisInstructions = ai;
-    } else {
-      switch (keyCode) {
-        case KEY_CODES.KP_MINUS: // -                  (z axis up)
+    switch (keyCode) {
+      case KEY_CODES.KP_MINUS: // -                  (z axis up)
+        if (isJogging) {
+          distance *= 0.25;
+          jogSpeed *= 0.25;
+          this.startSmoothJog(0, 0, +distance, jogSpeed);
+        } else {
           this.gcodeSender.moveGantryRelative(0, 0, +distance);
-          break;
-        case KEY_CODES.KP_PLUS: // +                   (z axis down)
+        }
+        break;
+      case KEY_CODES.KP_PLUS: // +                   (z axis down)
+        if (isJogging) {
+          distance *= 0.25;
+          jogSpeed *= 0.25;
+          this.startSmoothJog(0, 0, -distance, jogSpeed);
+        } else {
           this.gcodeSender.moveGantryRelative(0, 0, -distance);
-          break;
-        case KEY_CODES.KP_4: // arrow: left (4)        (move -X)
+        }
+        break;
+      case KEY_CODES.KP_4: // arrow: left (4)        (move -X)
+        if (isJogging) {
+          this.startSmoothJog(-distance, 0, 0, jogSpeed);
+        } else {
           this.gcodeSender.moveGantryRelative(-distance, 0, 0);
-          break;
-        case KEY_CODES.KP_6: // arrow: right (6)       (move +X)
+        }
+        break;
+      case KEY_CODES.KP_6: // arrow: right (6)       (move +X)
+        if (isJogging) {
+          this.startSmoothJog(+distance, 0, 0, jogSpeed);
+        } else {
           this.gcodeSender.moveGantryRelative(+distance, 0, 0);
-          break;
-        case KEY_CODES.KP_8: // arrow: up (8)          (move +Y)
+        }
+        break;
+      case KEY_CODES.KP_8: // arrow: up (8)          (move +Y)
+        if (isJogging) {
+          this.startSmoothJog(0, +distance, 0, jogSpeed);
+        } else {
           this.gcodeSender.moveGantryRelative(0, +distance, 0);
-          break;
-        case KEY_CODES.KP_2: // arrow: down (2)        (move -Y)
+        }
+        break;
+      case KEY_CODES.KP_2: // arrow: down (2)        (move -Y)
+        if (isJogging) {
+          this.startSmoothJog(0, -distance, 0, jogSpeed);
+        } else {
           this.gcodeSender.moveGantryRelative(0, -distance, 0);
-          break;
-        case KEY_CODES.KP_1: // arrow: End (1)         (move -X and -Y)
+        }
+        break;
+      case KEY_CODES.KP_1: // arrow: End (1)         (move -X and -Y)
+        if (isJogging) {
+          this.startSmoothJog(-distance, -distance, 0, jogSpeed);
+        } else {
           this.gcodeSender.moveGantryRelative(-distance, -distance, 0);
-          break;
-        case KEY_CODES.KP_9: // arrow: Page up (9)     (move +X and +Y)
+        }
+        break;
+      case KEY_CODES.KP_9: // arrow: Page up (9)     (move +X and +Y)
+        if (isJogging) {
+          this.startSmoothJog(+distance, +distance, 0, jogSpeed);
+        } else {
           this.gcodeSender.moveGantryRelative(+distance, +distance, 0);
-          break;
-        case KEY_CODES.KP_3: // arrow: Page Down (3)   (move +X and -Y)
+        }
+        break;
+      case KEY_CODES.KP_3: // arrow: Page Down (3)   (move +X and -Y)
+        if (isJogging) {
+          this.startSmoothJog(+distance, -distance, 0, jogSpeed);
+        } else {
           this.gcodeSender.moveGantryRelative(+distance, -distance, 0);
-          break;
-        case KEY_CODES.KP_7: // Key 7: Home (7)        (move -X and +Y)
+        }
+        break;
+      case KEY_CODES.KP_7: // Key 7: Home (7)        (move -X and +Y)
+        if (isJogging) {
+          this.startSmoothJog(-distance, +distance, 0, jogSpeed);
+        } else {
           this.gcodeSender.moveGantryRelative(-distance, +distance, 0);
-          break;
-        case KEY_CODES.KP_5: // Key: 5                 (move to work home)
-          this.gcodeSender.moveGantryWCSHomeXY();
-          break;
-        case KEY_CODES.TAB: // Key: Tab                (set work position to zero)
-          this.gcodeSender.recordGantryZeroWCSX();
-          this.gcodeSender.recordGantryZeroWCSY();
-          this.gcodeSender.recordGantryZeroWCSZ();
-          break;
-        case KEY_CODES.KP_0: // Key: 0                 (unlock)
-          this.gcodeSender.controllerUnlock();
-          break;
-        case KEY_CODES.KP_PERIOD: // Key: Period/Comma (probe)
-          this.gcodeSender.performZProbingTwice();
-          break;
-        case KEY_CODES.KP_ENTER: // Key: Enter         (homing)
-          this.gcodeSender.performHoming();
-          break;
-        case KEY_CODES.NUMLOCKCLEAR: // Numlock        (set work position for x and y to zero)
-          this.gcodeSender.recordGantryZeroWCSX();
-          this.gcodeSender.recordGantryZeroWCSY();
-          break;
-        case KEY_CODES.KP_DIVIDE: // key: /            (set move distance to 0.1)
-          this.numpadState.moveDistance = 0.1;
-          break;
-        case KEY_CODES.KP_MULTIPLY: // key: *          (set move distance to 1)
-          this.numpadState.moveDistance = 1;
-          break;
-        case KEY_CODES.BACKSPACE: // key: Backspace    (set move distance to 10)
-          this.numpadState.moveDistance = 10;
-          break;
-        default:
-          break;
-      }
+        }
+        break;
+      case KEY_CODES.KP_5: // Key: 5                 (move to work home)
+        this.gcodeSender.moveGantryWCSHomeXY();
+        break;
+      case KEY_CODES.TAB: // Key: Tab                (set work position to zero)
+        this.gcodeSender.recordGantryZeroWCSX();
+        this.gcodeSender.recordGantryZeroWCSY();
+        this.gcodeSender.recordGantryZeroWCSZ();
+        break;
+      case KEY_CODES.KP_0: // Key: 0                 (unlock)
+        this.gcodeSender.controllerUnlock();
+        break;
+      case KEY_CODES.KP_PERIOD: // Key: Period/Comma (probe)
+        this.gcodeSender.performZProbingTwice();
+        break;
+      case KEY_CODES.KP_ENTER: // Key: Enter         (homing)
+        this.gcodeSender.performHoming();
+        break;
+      case KEY_CODES.NUMLOCKCLEAR: // Numlock        (set work position for x and y to zero)
+        this.gcodeSender.recordGantryZeroWCSX();
+        this.gcodeSender.recordGantryZeroWCSY();
+        break;
+      case KEY_CODES.KP_DIVIDE: // key: /            (set move distance to 0.1)
+        this.numpadState.moveDistance = SINGLESTEP_SMALL_JOGDISTANCE;
+        break;
+      case KEY_CODES.KP_MULTIPLY: // key: *          (set move distance to 1)
+        this.numpadState.moveDistance = SINGLESTEP_MEDIUM_JOGDISTANCE;
+        break;
+      case KEY_CODES.BACKSPACE: // key: Backspace    (set move distance to 10)
+        this.numpadState.moveDistance = SINGLESTEP_LARGE_JOGDISTANCE;
+        break;
+      case KEY_CODES.KEYCODE_UNKNOWN:
+        this.smoothJogging = false;
+        break;
+      default:
+        break;
+    }
 
-      // store current key in state
-      if (keyCode !== KEY_CODES.KEYCODE_UNKNOWN)
-        this.numpadState.previousKeyCode = keyCode;
+    // store current key in state
+    if (keyCode !== KEY_CODES.KEYCODE_UNKNOWN) {
+      this.numpadState.previousKeyCode = keyCode;
     }
   }
 
-  //--------------------------------------------------------------------------
-  // We don't have continuous control over motors, so the best that we can
-  // do is move them a certain distance for fixed periods of time. We will
-  // simulate constant movement by sending new move commands at a fixed
-  // frequency, when enabled.
-  //--------------------------------------------------------------------------
-  jogFunction() {
-    // const state = this.numpadState;
-    const ai = this.axisInstructions as XYZCoords;
-
-    log.trace(
-      LOGPREFIX,
-      'jogFunction',
-      `Heartbeat, serialConnected: ${this.connector.serialConnected}`
-    );
-    this.jogTimer = setTimeout(this.jogFunction.bind(this), JOG_INTERVAL);
-
-    // if (Object.keys(state).length === 0 || Object.keys(ai).length === 0) return;
-    if (Object.keys(ai).length === 0) return;
-    if (ai.move_x_axis === 0 && ai.move_y_axis === 0 && ai.move_z_axis == 0)
+  smoothJog(
+    x: number,
+    y: number,
+    z: number,
+    jogSpeed: number,
+    firstDelay = false
+  ) {
+    if (!this.smoothJogging) {
       return;
+    }
+    let jogDelayModifier = 1;
 
-    this.jogGantry(ai.move_x_axis, ai.move_y_axis, ai.move_z_axis);
+    if (this.joggingAck) {
+      this.gcodeSender.moveGantryJogToXYZ(x, y, z, jogSpeed);
+      log.debug(
+        LOGPREFIX,
+        `jogGantry: x=${x}, y=${y}, z=${z} at ${jogSpeed} mm/min`
+      );
+
+      this.joggingAck = false;
+    } else {
+      // check back in 50% time
+      jogDelayModifier = 0.5;
+    }
+
+    // plan to resend a smooth jog command after a small delay to keep things going,
+    // unless user asked to stop the smooth jog movement
+    this.smoothJoggingTimer = setTimeout(
+      this.smoothJog,
+      SMOOTHJOG_COMMANDS_INTERVAL * jogDelayModifier - (firstDelay ? 50 : 0),
+      x,
+      y,
+      z,
+      jogSpeed
+    );
   }
 
-  //--------------------------------------------------------------------------
-  // Move the gantry based on a distance and a computed feedrate that matches
-  // a specific amount of time. This is used so that we can keep the movement
-  // queue in sync with the joystick update intervals.
-  //--------------------------------------------------------------------------
-  jogGantry(x: number, y: number, z: number) {
-    const dist = Math.sqrt(x * x + y * y + z * z); // travel distance
-    const speed = (dist * 60000) / JOG_INTERVAL; // convert to mm/min
-    this.gcodeSender.moveGantryJogToXYZ(x, y, z, speed);
-    log.debug(
-      LOGPREFIX,
-      `jogGantry: x=${x}, y=${y}, z=${z}; distance=${dist} at ${speed} mm/min`
-    );
+  startSmoothJog(x: number, y: number, z: number, jogSpeed: number) {
+    if (!this.smoothJogging) {
+      this.smoothJogging = true;
+      this.smoothJog(x, y, z, jogSpeed, true);
+    }
+  }
+
+  stopSmoothJog() {
+    this.smoothJogging = false;
+    clearTimeout(this.smoothJoggingTimer);
+    this.connector.socket.emit('command', this.options.port, 'gcode', '\x85');
+    log.debug(LOGPREFIX, `Smooth jogging stopped!`);
   }
 } // class Actions

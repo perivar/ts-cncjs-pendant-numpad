@@ -169,32 +169,28 @@ export class NumpadController {
     const KEY_MOD_RALT = 0x40;
     const KEY_MOD_RMETA = 0x80;
 
+    const bits = recv.shift(); // remove first element from array and returns that removed element
+
     const kbdevent: KeyboardEvent = {
-      l_control: false,
-      l_shift: false,
-      l_alt: false,
-      l_meta: false,
-      r_control: false,
-      r_shift: false,
-      r_alt: false,
-      r_meta: false,
+      l_control: (bits & KEY_MOD_LCTRL) !== 0 && bits <= 128,
+      l_shift: (bits & KEY_MOD_LSHIFT) !== 0 && bits <= 128,
+      l_alt: (bits & KEY_MOD_LALT) !== 0 && bits <= 128,
+      l_meta: (bits & KEY_MOD_LMETA) !== 0 && bits <= 128,
+      r_control: (bits & KEY_MOD_RCTRL) !== 0 && bits <= 128,
+      r_shift: (bits & KEY_MOD_RSHIFT) !== 0 && bits <= 128,
+      r_alt: (bits & KEY_MOD_RALT) !== 0 && bits <= 128,
+      r_meta: (bits & KEY_MOD_RMETA) !== 0 && bits <= 128,
 
       key: 0, // Normal keys
     };
 
-    const bits = recv.shift(); // remove first element from array and returns that removed element
-    kbdevent.l_control = (bits & KEY_MOD_LCTRL) !== 0;
-    kbdevent.l_shift = (bits & KEY_MOD_LSHIFT) !== 0;
-    kbdevent.l_alt = (bits & KEY_MOD_LALT) !== 0;
-    kbdevent.l_meta = (bits & KEY_MOD_LMETA) !== 0;
-    kbdevent.r_control = (bits & KEY_MOD_RCTRL) !== 0;
-    kbdevent.r_shift = (bits & KEY_MOD_RSHIFT) !== 0;
-    kbdevent.r_alt = (bits & KEY_MOD_RALT) !== 0;
-    kbdevent.r_meta = (bits & KEY_MOD_RMETA) !== 0;
-
     recv.shift(); // ignore reserved byte
 
     kbdevent.key = recv.shift(); // remove first element from array and returns that removed element
+
+    if (kbdevent.key == 0 && bits > 128) {
+      kbdevent.key = bits;
+    }
 
     const keyCode = kbdevent.key;
     const keyHex = kbdevent.key.toString(16);
