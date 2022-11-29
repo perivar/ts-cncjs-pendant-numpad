@@ -176,6 +176,7 @@ export class Actions {
     );
 
     const SMOOTH = true;
+    const SLOW = true;
     if (SMOOTH) {
       //------------------------------------------------------------
       // Determine appropriate jog and creep values for the axes
@@ -184,8 +185,8 @@ export class Actions {
       // case we select motion later.
       //------------------------------------------------------------
 
-      const jogVelocity = VXY_MED;
-      const creepDist = CXY_MED;
+      const jogVelocity = SLOW ? VXY_LOW : VXY_MED;
+      const creepDist = SLOW ? CXY_LOW : CXY_MED;
 
       //------------------------------------------------------------
       // Determine appropriate jog and creep values for the Z axis.
@@ -195,8 +196,8 @@ export class Actions {
       // testing is doing something else this round.
       //------------------------------------------------------------
 
-      const jogVelocityZ = VZ_MED;
-      const creepDistZ = CZ_MED;
+      const jogVelocityZ = SLOW ? VZ_LOW : VZ_MED;
+      const creepDistZ = SLOW ? CZ_LOW : CZ_MED;
 
       // ensure we are only moving the default distance
       distance = DEFAULT_MOVE_DISTANCE;
@@ -213,9 +214,27 @@ export class Actions {
       switch (keyCode) {
         case KEY_CODES.KP_MINUS: // -                  (z axis up +Z)
           ai.move_z_axis = +distance * jogVelocityZ;
+          if (isJustPressed) {
+            clearTimeout(this.jogTimer);
+            const d = creepDistZ * +distance;
+            this.jogGantry(0, 0, d);
+            this.jogTimer = setTimeout(
+              this.jogFunction.bind(this),
+              CREEP_INTERVAL
+            );
+          }
           break;
         case KEY_CODES.KP_PLUS: // +                   (z axis down -Z)
           ai.move_z_axis = -distance * jogVelocityZ;
+          if (isJustPressed) {
+            clearTimeout(this.jogTimer);
+            const d = creepDistZ * -distance;
+            this.jogGantry(0, 0, d);
+            this.jogTimer = setTimeout(
+              this.jogFunction.bind(this),
+              CREEP_INTERVAL
+            );
+          }
           break;
         case KEY_CODES.KP_4: // arrow: left (4)        (move -X)
           ai.move_x_axis = -distance * jogVelocity;
