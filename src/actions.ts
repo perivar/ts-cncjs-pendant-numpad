@@ -85,12 +85,11 @@ export class Actions {
   numpadController: NumpadController; // connection to numpad
   options: Options; // program-wide options
   gcodeSender: GcodeSender; // abstraction interface
-
   numpadState: NumpadState; // state of current numpad
 
-  smoothJogging = false;
+  smoothJogging: boolean;
   smoothJoggingTimer: NodeJS.Timer; // jog timer reference
-  joggingAck = true;
+  joggingAck: boolean;
 
   //----------------------------------------------------------------------------
   // constructor()
@@ -103,6 +102,9 @@ export class Actions {
     this.numpadState = {
       moveDistance: DEFAULT_MOVE_DISTANCE, // Alter by F1, F2, F3
     };
+
+    this.smoothJogging = false;
+    this.joggingAck = true;
 
     // listen for use events
     this.numpadController.on('use', this.onUse.bind(this));
@@ -164,15 +166,15 @@ export class Actions {
       return;
     }
 
-    const isJogging = true;
+    const useJogging = true;
     let jogSpeed = SMOOTHJOG_JOGSPEED;
-    if (isJogging) {
+    if (useJogging) {
       distance = SMOOTHJOG_JOGSTEP;
     }
 
     switch (keyCode) {
       case KEY_CODES.KP_MINUS: // -                  (z axis up)
-        if (isJogging) {
+        if (useJogging) {
           distance *= 0.25;
           jogSpeed *= 0.25;
           this.startSmoothJog(0, 0, +distance, jogSpeed);
@@ -181,7 +183,7 @@ export class Actions {
         }
         break;
       case KEY_CODES.KP_PLUS: // +                   (z axis down)
-        if (isJogging) {
+        if (useJogging) {
           distance *= 0.25;
           jogSpeed *= 0.25;
           this.startSmoothJog(0, 0, -distance, jogSpeed);
@@ -190,56 +192,56 @@ export class Actions {
         }
         break;
       case KEY_CODES.KP_4: // arrow: left (4)        (move -X)
-        if (isJogging) {
+        if (useJogging) {
           this.startSmoothJog(-distance, 0, 0, jogSpeed);
         } else {
           this.gcodeSender.moveGantryRelative(-distance, 0, 0);
         }
         break;
       case KEY_CODES.KP_6: // arrow: right (6)       (move +X)
-        if (isJogging) {
+        if (useJogging) {
           this.startSmoothJog(+distance, 0, 0, jogSpeed);
         } else {
           this.gcodeSender.moveGantryRelative(+distance, 0, 0);
         }
         break;
       case KEY_CODES.KP_8: // arrow: up (8)          (move +Y)
-        if (isJogging) {
+        if (useJogging) {
           this.startSmoothJog(0, +distance, 0, jogSpeed);
         } else {
           this.gcodeSender.moveGantryRelative(0, +distance, 0);
         }
         break;
       case KEY_CODES.KP_2: // arrow: down (2)        (move -Y)
-        if (isJogging) {
+        if (useJogging) {
           this.startSmoothJog(0, -distance, 0, jogSpeed);
         } else {
           this.gcodeSender.moveGantryRelative(0, -distance, 0);
         }
         break;
       case KEY_CODES.KP_1: // arrow: End (1)         (move -X and -Y)
-        if (isJogging) {
+        if (useJogging) {
           this.startSmoothJog(-distance, -distance, 0, jogSpeed);
         } else {
           this.gcodeSender.moveGantryRelative(-distance, -distance, 0);
         }
         break;
       case KEY_CODES.KP_9: // arrow: Page up (9)     (move +X and +Y)
-        if (isJogging) {
+        if (useJogging) {
           this.startSmoothJog(+distance, +distance, 0, jogSpeed);
         } else {
           this.gcodeSender.moveGantryRelative(+distance, +distance, 0);
         }
         break;
       case KEY_CODES.KP_3: // arrow: Page Down (3)   (move +X and -Y)
-        if (isJogging) {
+        if (useJogging) {
           this.startSmoothJog(+distance, -distance, 0, jogSpeed);
         } else {
           this.gcodeSender.moveGantryRelative(+distance, -distance, 0);
         }
         break;
       case KEY_CODES.KP_7: // Key 7: Home (7)        (move -X and +Y)
-        if (isJogging) {
+        if (useJogging) {
           this.startSmoothJog(-distance, +distance, 0, jogSpeed);
         } else {
           this.gcodeSender.moveGantryRelative(-distance, +distance, 0);

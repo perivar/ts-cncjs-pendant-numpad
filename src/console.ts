@@ -55,13 +55,6 @@ export interface Options {
   actionsMap: ActionsMappings;
 }
 
-function Err(e: unknown): NodeJS.ErrnoException {
-  if (e instanceof Error) {
-    return e as NodeJS.ErrnoException;
-  }
-  throw new Error(`Unexpected Throw: ${typeof e}`);
-}
-
 const decimalToHex = (d: number) =>
   '0x' + Number(d).toString(16).padStart(4, '0');
 

@@ -279,6 +279,19 @@ export class Connector {
     const userHome =
       process.env[process.platform === 'win32' ? 'USERPROFILE' : 'HOME'];
     const cncrc = path.resolve(userHome || '', '.cncrc');
+    // Check that the file exists locally
+    if (!fs.existsSync(cncrc)) {
+      log.error(LOGPREFIX, 'Failed! No secret config file at:', cncrc);
+      if (this.options.simulate) {
+        log.info(LOGPREFIX, 'Simulation with a secret:', 'dummySecret');
+        this.options.secret = 'dummySecret';
+        return;
+      } else {
+        process.exit(1);
+      }
+    } else {
+      log.info(LOGPREFIX, 'Success! Found secret config file at:', cncrc);
+    }
     try {
       const config = JSON.parse(fs.readFileSync(cncrc, 'utf8'));
       this.options.secret = config.secret;
