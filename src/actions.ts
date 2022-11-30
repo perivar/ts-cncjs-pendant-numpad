@@ -112,9 +112,6 @@ export class Actions {
       moveDistance: DEFAULT_MOVE_DISTANCE, // Alter by F1, F2, F3
     };
 
-    this.smoothJogging = false;
-    this.joggingAck = true;
-
     // listen for use events
     this.numpadController.on('use', this.onUse.bind(this));
 
@@ -131,6 +128,10 @@ export class Actions {
         this.joggingAck = true;
       }
     });
+
+    this.smoothJogging = false;
+    this.joggingAck = true;
+    this.startSmoothJog();
   }
 
   //----------------------------------------------------------------------------
@@ -334,12 +335,13 @@ export class Actions {
   startSmoothJog() {
     log.debug(
       LOGPREFIX,
-      `Smooth jogging starting, smoothJogging is ${this.smoothJogging}`
+      `Starting smooth jogging timer, smoothJogging is ${this.smoothJogging}`
     );
+
     if (!this.smoothJogging) {
       this.smoothJogging = true;
 
-      // schedule the jogFunction to run each JOG_INTERVAL (restarted in jogFunction)
+      // schedule the jogFunction to run each SMOOTHJOG_COMMANDS_INTERVAL (restarted in jogFunction)
       this.smoothJoggingTimer = setTimeout(
         this.jogFunction.bind(this),
         SMOOTHJOG_COMMANDS_INTERVAL
@@ -351,9 +353,15 @@ export class Actions {
   // Force a smooth jogging stop
   //--------------------------------------------------------------------------
   stopSmoothJog() {
+    log.debug(
+      LOGPREFIX,
+      `Stopping smooth jogging, smoothJogging is ${this.smoothJogging}`
+    );
+
     this.smoothJogging = false;
     clearTimeout(this.smoothJoggingTimer);
     this.connector.socket.emit('command', this.options.port, 'gcode', '\x85');
+
     log.debug(LOGPREFIX, `Smooth jogging stopped!`);
   }
 
@@ -372,25 +380,20 @@ export class Actions {
       `Heartbeat, serialConnected: ${this.connector.serialConnected}`
     );
 
+    // if joggingAck is false, check back in 50% time
+    this.smoothJoggingTimer = setTimeout(
+      this.jogFunction.bind(this),
+      SMOOTHJOG_COMMANDS_INTERVAL * (this.joggingAck ? 1 : 0.5)
+    );
+
     if (Object.keys(ai).length === 0) return;
     if (ai.move_x_axis === 0 && ai.move_y_axis === 0 && ai.move_z_axis == 0)
       return;
 
-    let jogDelayModifier = 1;
-
     if (this.joggingAck) {
       this.jogGantry(ai.move_x_axis, ai.move_y_axis, ai.move_z_axis);
-
       this.joggingAck = false;
-    } else {
-      // check back in 50% time
-      jogDelayModifier = 0.5;
     }
-
-    this.smoothJoggingTimer = setTimeout(
-      this.jogFunction.bind(this),
-      SMOOTHJOG_COMMANDS_INTERVAL * jogDelayModifier
-    );
   }
 
   //--------------------------------------------------------------------------
