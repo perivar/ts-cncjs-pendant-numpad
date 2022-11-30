@@ -115,6 +115,10 @@ export class Actions {
         !this.joggingAck &&
         (data.startsWith('ok') || data.startsWith('error:15')) // Error 15: Travel exceeded	Jog target exceeds machine travel. Jog command has been ignored.
       ) {
+        log.debug(
+          LOGPREFIX,
+          `Receiveed data: ${data}, setting jogginAck to true`
+        );
         this.joggingAck = true;
       }
     });
@@ -297,6 +301,8 @@ export class Actions {
     jogSpeed: number,
     firstDelay = false
   ) {
+    log.debug(LOGPREFIX, `Smooth Jog method, smoothJogging is ${this.smoothJogging}, joggingAck is ${this.joggingAck}`);
+
     if (!this.smoothJogging) {
       return;
     }
@@ -318,7 +324,7 @@ export class Actions {
     // plan to resend a smooth jog command after a small delay to keep things going,
     // unless user asked to stop the smooth jog movement
     this.smoothJoggingTimer = setTimeout(
-      this.smoothJog,
+      this.smoothJog.bind(this),
       SMOOTHJOG_COMMANDS_INTERVAL * jogDelayModifier - (firstDelay ? 50 : 0),
       x,
       y,
@@ -328,6 +334,7 @@ export class Actions {
   }
 
   startSmoothJog(x: number, y: number, z: number, jogSpeed: number) {
+    log.debug(LOGPREFIX, `Smooth jogging starting, smoothJogging is ${this.smoothJogging}`);
     if (!this.smoothJogging) {
       this.smoothJogging = true;
       this.smoothJog(x, y, z, jogSpeed, true);
@@ -338,6 +345,7 @@ export class Actions {
     this.smoothJogging = false;
     clearTimeout(this.smoothJoggingTimer);
     this.connector.socket.emit('command', this.options.port, 'gcode', '\x85');
+    this.joggingAck = true;
     log.debug(LOGPREFIX, `Smooth jogging stopped!`);
   }
 } // class Actions
