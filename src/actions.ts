@@ -129,9 +129,8 @@ export class Actions {
       }
     });
 
-    this.smoothJogging = false;
     this.joggingAck = true;
-    this.startSmoothJog();
+    this.restartSmoothJog();
   }
 
   //----------------------------------------------------------------------------
@@ -178,11 +177,6 @@ export class Actions {
       LOGPREFIX,
       `Received keyCode: 0x${keyHex} = ${keyCode}, current move distance: ${distance}, useJogging: ${useJogging}, smoothJogging: ${this.smoothJogging}`
     );
-
-    if (this.smoothJogging) {
-      this.stopSmoothJog();
-      return;
-    }
 
     //------------------------------------------------------------
     // Determine appropriate jog values for the axes X and Y.
@@ -307,7 +301,10 @@ export class Actions {
         this.numpadState.moveDistance = SINGLESTEP_LARGE_JOGDISTANCE;
         break;
       case KEY_CODES.KEYCODE_UNKNOWN:
-        this.smoothJogging = false;
+        //if (this.smoothJogging) {
+        //this.stopSmoothJog();
+        //this.smoothJogging = false;
+        //}
         break;
       default:
         break;
@@ -325,28 +322,30 @@ export class Actions {
     this.axisInstructions = ai;
 
     if (useJogging) {
-      this.startSmoothJog();
+      this.restartSmoothJog();
     }
   }
 
   //--------------------------------------------------------------------------
-  // Start smooth jogging
+  // Restart smooth jogging
   //--------------------------------------------------------------------------
-  startSmoothJog() {
+  restartSmoothJog() {
     log.debug(
       LOGPREFIX,
-      `Starting smooth jogging timer, smoothJogging is ${this.smoothJogging}`
+      `Restarting smooth jogging timer, smoothJogging is ${this.smoothJogging}`
     );
 
-    if (!this.smoothJogging) {
-      this.smoothJogging = true;
+    this.smoothJogging = false;
 
-      // schedule the jogFunction to run each SMOOTHJOG_COMMANDS_INTERVAL (restarted in jogFunction)
-      this.smoothJoggingTimer = setTimeout(
-        this.jogFunction.bind(this),
-        SMOOTHJOG_COMMANDS_INTERVAL
-      );
-    }
+    clearTimeout(this.smoothJoggingTimer);
+
+    // schedule the jogFunction to run each SMOOTHJOG_COMMANDS_INTERVAL (restarted in jogFunction)
+    this.smoothJoggingTimer = setTimeout(
+      this.jogFunction.bind(this),
+      SMOOTHJOG_COMMANDS_INTERVAL
+    );
+
+    this.smoothJogging = true;
   }
 
   //--------------------------------------------------------------------------
