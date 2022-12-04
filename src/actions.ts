@@ -157,8 +157,10 @@ export class Actions {
     // This isn't enabling motion yet, just selecting a speed in
     // case we select motion later.
     //------------------------------------------------------------
-    const jogVelocity = SMOOTHJOG_JOGSPEED;
-    const jogDistance = SMOOTHJOG_JOGSTEP;
+    //const jogVelocity = SMOOTHJOG_JOGSPEED;
+    //const jogDistance = SMOOTHJOG_JOGSTEP;
+    const jogVelocity = SMOOTHJOG_JOGSTEP;
+    const jogDistance = distance / 10;
 
     //------------------------------------------------------------
     // Determine appropriate jog values for the Z axis.
@@ -296,15 +298,6 @@ export class Actions {
   }
 
   //--------------------------------------------------------------------------
-  // Force a smooth jogging stop
-  //--------------------------------------------------------------------------
-  stopSmoothJog() {
-    log.debug(LOGPREFIX, `Stopping smooth jogging ...`);
-
-    log.debug(LOGPREFIX, `Smooth jogging stopped!`);
-  }
-
-  //--------------------------------------------------------------------------
   // We don't have continuous control over motors, so the best that we can
   // do is move them a certain distance for fixed periods of time. We will
   // simulate constant movement by sending new move commands at a fixed
@@ -316,7 +309,7 @@ export class Actions {
     log.trace(
       LOGPREFIX,
       'jogFunction',
-      `Heartbeat, serialConnected: ${this.connector.serialConnected}`
+      `Heartbeat, serialConnected: ${this.connector.serialConnected}, joggingAck: ${this.joggingAck}`
     );
 
     // if joggingAck is false, check back in 50% time
