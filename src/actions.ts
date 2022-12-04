@@ -26,10 +26,9 @@ const SINGLESTEP_LARGE_JOGDISTANCE = 10; // large jog step in mm
 const SINGLESTEP_MEDIUM_JOGDISTANCE = 1; // medium jog step in mm
 const SINGLESTEP_SMALL_JOGDISTANCE = 0.1; // small jog step in mm
 
-const SMOOTHJOG_COMMANDS_INTERVAL = 150; // period in ms at which the $J jogging commands are sent to the machine
-const SMOOTHJOG_JOGSPEED = 2000; // mm/minute
-const SMOOTHJOG_JOGSTEP =
-  SMOOTHJOG_JOGSPEED * (SMOOTHJOG_COMMANDS_INTERVAL / 60000); // mm/minute in terms of mm/interval
+const JOG_INTERVAL = 150; // default: 150, period in ms at which the $J jogging commands are sent to the machine
+const JOG_JOGSPEED = 2000; // default: 2000, mm/minute
+const JOG_JOGSTEP = JOG_JOGSPEED * (JOG_INTERVAL / 60000); // mm/minute in terms of mm/interval
 
 //------------------------------------------------------------------------------
 // Represents the instantaneous state of the numpad.
@@ -67,8 +66,8 @@ export class Actions {
   numpadState: NumpadState; // state of current numpad
   axisInstructions = new XYZCoords(); // next jog movement instructions
 
-  smoothJoggingTimer: NodeJS.Timer; // jog timer reference
-  joggingAck: boolean;
+  jogTimer: NodeJS.Timer; // jog timer reference
+  joggingAck = true; // jog acknowledgement (true or false), start with it OK
 
   //----------------------------------------------------------------------------
   // constructor()
@@ -100,11 +99,7 @@ export class Actions {
     });
 
     // start jogging timer
-    this.joggingAck = true;
-    this.smoothJoggingTimer = setTimeout(
-      this.jogFunction.bind(this),
-      SMOOTHJOG_COMMANDS_INTERVAL
-    );
+    this.jogTimer = setTimeout(this.jogFunction.bind(this), JOG_INTERVAL);
   }
 
   //----------------------------------------------------------------------------
@@ -157,9 +152,7 @@ export class Actions {
     // This isn't enabling motion yet, just selecting a speed in
     // case we select motion later.
     //------------------------------------------------------------
-    //const jogVelocity = SMOOTHJOG_JOGSPEED;
-    //const jogDistance = SMOOTHJOG_JOGSTEP;
-    const jogVelocity = SMOOTHJOG_JOGSTEP;
+    const jogVelocity = JOG_JOGSTEP;
     const jogDistance = distance / 10;
 
     //------------------------------------------------------------
@@ -168,8 +161,8 @@ export class Actions {
     // select motion later, so it doesn't matter if the key we're
     // testing is doing something else this round.
     //------------------------------------------------------------
-    const jogVelocityZ = SMOOTHJOG_JOGSPEED * 0.25;
-    const jogDistanceZ = SMOOTHJOG_JOGSTEP * 0.25;
+    const jogVelocityZ = JOG_JOGSPEED * 0.25;
+    const jogDistanceZ = JOG_JOGSTEP * 0.25;
 
     switch (keyCode) {
       case KEY_CODE.KPMINUS: // -                  (z axis up)
@@ -313,9 +306,9 @@ export class Actions {
     );
 
     // if joggingAck is false, check back in 50% time
-    this.smoothJoggingTimer = setTimeout(
+    this.jogTimer = setTimeout(
       this.jogFunction.bind(this),
-      SMOOTHJOG_COMMANDS_INTERVAL * (this.joggingAck ? 1 : 0.5)
+      JOG_INTERVAL * (this.joggingAck ? 1 : 0.5)
     );
 
     if (Object.keys(ai).length === 0) return;
@@ -335,7 +328,7 @@ export class Actions {
   //--------------------------------------------------------------------------
   jogGantry(x: number, y: number, z: number) {
     const dist = Math.sqrt(x * x + y * y + z * z); // travel distance
-    const speed = (dist * 60000) / SMOOTHJOG_COMMANDS_INTERVAL; // convert to mm/min
+    const speed = (dist * 60000) / JOG_INTERVAL; // convert to mm/min
     this.gcodeSender.moveGantryJogToXYZ(x, y, z, speed);
     log.debug(
       LOGPREFIX,
