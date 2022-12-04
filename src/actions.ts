@@ -14,6 +14,7 @@ import { Options } from './console';
 import { GcodeGrbl } from './gcode-grbl';
 import { GcodeMarlin } from './gcode-marlin';
 import { GcodeSender } from './gcode-sender';
+import { KEY_CODE } from './keyboard-codes';
 import { KeyboardEvent, NumpadController } from './numpad_controller';
 
 //------------------------------------------------------------------------------
@@ -54,36 +55,6 @@ export interface ActionsMappings {
   [key: string]: any;
 }
 
-// https://gist.github.com/Crenshinibon/5238119
-// https://git.sr.ht/~sircmpwn/hare-sdl2/tree/7855e717d6af1b4f1e9ed15b7db9bda6686da954/item/sdl2/keyboard.ha
-enum KEY_CODES {
-  KEYCODE_UNKNOWN = 0,
-
-  RETURN = 40,
-  ESCAPE = 41,
-  BACKSPACE = 42,
-  TAB = 43,
-  SPACE = 44,
-
-  NUMLOCKCLEAR = 83, // num lock on PC, clear on Mac keyboards
-  KP_DIVIDE = 84,
-  KP_MULTIPLY = 85,
-  KP_MINUS = 86,
-  KP_PLUS = 87,
-  KP_ENTER = 88,
-  KP_1 = 89,
-  KP_2 = 90,
-  KP_3 = 91,
-  KP_4 = 92,
-  KP_5 = 93,
-  KP_6 = 94,
-  KP_7 = 95,
-  KP_8 = 96,
-  KP_9 = 97,
-  KP_0 = 98,
-  KP_PERIOD = 99,
-}
-
 //------------------------------------------------------------------------------
 // Main module - provided access to command line options.
 //------------------------------------------------------------------------------
@@ -96,7 +67,6 @@ export class Actions {
   numpadState: NumpadState; // state of current numpad
   axisInstructions = new XYZCoords(); // next jog movement instructions
 
-  smoothJogging: boolean;
   smoothJoggingTimer: NodeJS.Timer; // jog timer reference
   joggingAck: boolean;
 
@@ -129,8 +99,12 @@ export class Actions {
       }
     });
 
+    // start jogging timer
     this.joggingAck = true;
-    this.restartSmoothJog();
+    this.smoothJoggingTimer = setTimeout(
+      this.jogFunction.bind(this),
+      SMOOTHJOG_COMMANDS_INTERVAL
+    );
   }
 
   //----------------------------------------------------------------------------
@@ -175,7 +149,7 @@ export class Actions {
 
     log.info(
       LOGPREFIX,
-      `Received keyCode: 0x${keyHex} = ${keyCode}, current move distance: ${distance}, useJogging: ${useJogging}, smoothJogging: ${this.smoothJogging}`
+      `Received keyCode: 0x${keyHex} = ${keyCode}, current move distance: ${distance}, useJogging: ${useJogging}`
     );
 
     //------------------------------------------------------------
@@ -196,49 +170,49 @@ export class Actions {
     const jogDistanceZ = SMOOTHJOG_JOGSTEP * 0.25;
 
     switch (keyCode) {
-      case KEY_CODES.KP_MINUS: // -                  (z axis up)
+      case KEY_CODE.KPMINUS: // -                  (z axis up)
         if (useJogging) {
           ai.move_z_axis = +jogDistanceZ * jogVelocityZ;
         } else {
           this.gcodeSender.moveGantryRelative(0, 0, +distance);
         }
         break;
-      case KEY_CODES.KP_PLUS: // +                   (z axis down)
+      case KEY_CODE.KPPLUS: // +                   (z axis down)
         if (useJogging) {
           ai.move_z_axis = -jogDistanceZ * jogVelocityZ;
         } else {
           this.gcodeSender.moveGantryRelative(0, 0, -distance);
         }
         break;
-      case KEY_CODES.KP_4: // arrow: left (4)        (move -X)
+      case KEY_CODE.KP4: // arrow: left (4)        (move -X)
         if (useJogging) {
           ai.move_x_axis = -jogDistance * jogVelocity;
         } else {
           this.gcodeSender.moveGantryRelative(-distance, 0, 0);
         }
         break;
-      case KEY_CODES.KP_6: // arrow: right (6)       (move +X)
+      case KEY_CODE.KP6: // arrow: right (6)       (move +X)
         if (useJogging) {
           ai.move_x_axis = +jogDistance * jogVelocity;
         } else {
           this.gcodeSender.moveGantryRelative(+distance, 0, 0);
         }
         break;
-      case KEY_CODES.KP_8: // arrow: up (8)          (move +Y)
+      case KEY_CODE.KP8: // arrow: up (8)          (move +Y)
         if (useJogging) {
           ai.move_y_axis = +jogDistance * jogVelocity;
         } else {
           this.gcodeSender.moveGantryRelative(0, +distance, 0);
         }
         break;
-      case KEY_CODES.KP_2: // arrow: down (2)        (move -Y)
+      case KEY_CODE.KP2: // arrow: down (2)        (move -Y)
         if (useJogging) {
           ai.move_y_axis = -jogDistance * jogVelocity;
         } else {
           this.gcodeSender.moveGantryRelative(0, -distance, 0);
         }
         break;
-      case KEY_CODES.KP_1: // arrow: End (1)         (move -X and -Y)
+      case KEY_CODE.KP1: // arrow: End (1)         (move -X and -Y)
         if (useJogging) {
           ai.move_x_axis = -jogDistance * jogVelocity;
           ai.move_y_axis = -jogDistance * jogVelocity;
@@ -246,7 +220,7 @@ export class Actions {
           this.gcodeSender.moveGantryRelative(-distance, -distance, 0);
         }
         break;
-      case KEY_CODES.KP_9: // arrow: Page up (9)     (move +X and +Y)
+      case KEY_CODE.KP9: // arrow: Page up (9)     (move +X and +Y)
         if (useJogging) {
           ai.move_x_axis = +jogDistance * jogVelocity;
           ai.move_y_axis = +jogDistance * jogVelocity;
@@ -254,7 +228,7 @@ export class Actions {
           this.gcodeSender.moveGantryRelative(+distance, +distance, 0);
         }
         break;
-      case KEY_CODES.KP_3: // arrow: Page Down (3)   (move +X and -Y)
+      case KEY_CODE.KP3: // arrow: Page Down (3)   (move +X and -Y)
         if (useJogging) {
           ai.move_x_axis = +jogDistance * jogVelocity;
           ai.move_y_axis = -jogDistance * jogVelocity;
@@ -262,7 +236,7 @@ export class Actions {
           this.gcodeSender.moveGantryRelative(+distance, -distance, 0);
         }
         break;
-      case KEY_CODES.KP_7: // Key 7: Home (7)        (move -X and +Y)
+      case KEY_CODE.KP7: // Key 7: Home (7)        (move -X and +Y)
         if (useJogging) {
           ai.move_x_axis = -jogDistance * jogVelocity;
           ai.move_y_axis = +jogDistance * jogVelocity;
@@ -270,48 +244,47 @@ export class Actions {
           this.gcodeSender.moveGantryRelative(-distance, +distance, 0);
         }
         break;
-      case KEY_CODES.KP_5: // Key: 5                 (move to work home)
+      case KEY_CODE.KP5: // Key: 5                 (move to work home)
         this.gcodeSender.moveGantryWCSHomeXY();
         break;
-      case KEY_CODES.TAB: // Key: Tab                (set work position to zero)
+      case KEY_CODE.TAB: // Key: Tab               (set work position to zero)
         this.gcodeSender.recordGantryZeroWCSX();
         this.gcodeSender.recordGantryZeroWCSY();
         this.gcodeSender.recordGantryZeroWCSZ();
         break;
-      case KEY_CODES.KP_0: // Key: 0                 (unlock)
+      case KEY_CODE.KP0: // Key: 0                 (unlock)
         this.gcodeSender.controllerUnlock();
         break;
-      case KEY_CODES.KP_PERIOD: // Key: Period/Comma (probe)
+      case KEY_CODE.KPDOT: // Key: Period/Comma    (probe)
         this.gcodeSender.performZProbingTwice();
         break;
-      case KEY_CODES.KP_ENTER: // Key: Enter         (homing)
+      case KEY_CODE.KPENTER: // Key: Enter         (homing)
         this.gcodeSender.performHoming();
         break;
-      case KEY_CODES.NUMLOCKCLEAR: // Numlock        (set work position for x and y to zero)
+      case KEY_CODE.NUMLOCK: // Numlock            (set work position for x and y to zero)
         this.gcodeSender.recordGantryZeroWCSX();
         this.gcodeSender.recordGantryZeroWCSY();
         break;
-      case KEY_CODES.KP_DIVIDE: // key: /            (set move distance to 0.1)
+      case KEY_CODE.KPSLASH: // key: /             (set move distance to 0.1)
         this.numpadState.moveDistance = SINGLESTEP_SMALL_JOGDISTANCE;
         break;
-      case KEY_CODES.KP_MULTIPLY: // key: *          (set move distance to 1)
+      case KEY_CODE.KPASTERISK: // key: *          (set move distance to 1)
         this.numpadState.moveDistance = SINGLESTEP_MEDIUM_JOGDISTANCE;
         break;
-      case KEY_CODES.BACKSPACE: // key: Backspace    (set move distance to 10)
+      case KEY_CODE.BACKSPACE: // key: Backspace    (set move distance to 10)
         this.numpadState.moveDistance = SINGLESTEP_LARGE_JOGDISTANCE;
         break;
-      case KEY_CODES.KEYCODE_UNKNOWN:
-        //if (this.smoothJogging) {
-        //this.stopSmoothJog();
-        //this.smoothJogging = false;
-        //}
+      case KEY_CODE.NONE:
+        ai.move_x_axis = 0;
+        ai.move_y_axis = 0;
+        ai.move_z_axis = 0;
         break;
       default:
         break;
     }
 
-    // store current key in state
-    if (keyCode !== KEY_CODES.KEYCODE_UNKNOWN) {
+    // store last pressed key in state
+    if (keyCode !== KEY_CODE.NONE) {
       this.numpadState.previousKeyCode = keyCode;
     }
 
@@ -320,46 +293,13 @@ export class Actions {
     // accordingly.
     //==================================================
     this.axisInstructions = ai;
-
-    if (useJogging) {
-      this.restartSmoothJog();
-    }
-  }
-
-  //--------------------------------------------------------------------------
-  // Restart smooth jogging
-  //--------------------------------------------------------------------------
-  restartSmoothJog() {
-    log.debug(
-      LOGPREFIX,
-      `Restarting smooth jogging timer, smoothJogging is ${this.smoothJogging}`
-    );
-
-    this.smoothJogging = false;
-
-    clearTimeout(this.smoothJoggingTimer);
-
-    // schedule the jogFunction to run each SMOOTHJOG_COMMANDS_INTERVAL (restarted in jogFunction)
-    this.smoothJoggingTimer = setTimeout(
-      this.jogFunction.bind(this),
-      SMOOTHJOG_COMMANDS_INTERVAL
-    );
-
-    this.smoothJogging = true;
   }
 
   //--------------------------------------------------------------------------
   // Force a smooth jogging stop
   //--------------------------------------------------------------------------
   stopSmoothJog() {
-    log.debug(
-      LOGPREFIX,
-      `Stopping smooth jogging, smoothJogging is ${this.smoothJogging}`
-    );
-
-    this.smoothJogging = false;
-    clearTimeout(this.smoothJoggingTimer);
-    this.connector.socket.emit('command', this.options.port, 'gcode', '\x85');
+    log.debug(LOGPREFIX, `Stopping smooth jogging ...`);
 
     log.debug(LOGPREFIX, `Smooth jogging stopped!`);
   }

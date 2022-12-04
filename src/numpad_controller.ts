@@ -10,6 +10,7 @@ import hid from 'node-hid';
 import log from 'npmlog';
 
 import { Options } from './console';
+import { KEY_CODE, KEY_MOD } from './keyboard-codes';
 
 //------------------------------------------------------------------------------
 // Constant and interface definitions.
@@ -155,33 +156,19 @@ export class NumpadController {
 
     const recv = data.toJSON().data;
 
-    /**
-     * Modifier masks - used for the first byte in the HID report.
-     * NOTE: The second byte in the report is reserved, 0x00
-     * https://gist.github.com/MightyPork/6da26e382a7ad91b5496ee55fdc73db2
-     */
-    const KEY_MOD_LCTRL = 0x01;
-    const KEY_MOD_LSHIFT = 0x02;
-    const KEY_MOD_LALT = 0x04;
-    const KEY_MOD_LMETA = 0x08;
-    const KEY_MOD_RCTRL = 0x10;
-    const KEY_MOD_RSHIFT = 0x20;
-    const KEY_MOD_RALT = 0x40;
-    const KEY_MOD_RMETA = 0x80;
-
     const bits = recv.shift(); // remove first element from array and returns that removed element
 
     const kbdevent: KeyboardEvent = {
-      l_control: (bits & KEY_MOD_LCTRL) !== 0 && bits <= 128,
-      l_shift: (bits & KEY_MOD_LSHIFT) !== 0 && bits <= 128,
-      l_alt: (bits & KEY_MOD_LALT) !== 0 && bits <= 128,
-      l_meta: (bits & KEY_MOD_LMETA) !== 0 && bits <= 128,
-      r_control: (bits & KEY_MOD_RCTRL) !== 0 && bits <= 128,
-      r_shift: (bits & KEY_MOD_RSHIFT) !== 0 && bits <= 128,
-      r_alt: (bits & KEY_MOD_RALT) !== 0 && bits <= 128,
-      r_meta: (bits & KEY_MOD_RMETA) !== 0 && bits <= 128,
+      l_control: (bits & KEY_MOD.LCTRL) !== 0 && bits <= 128,
+      l_shift: (bits & KEY_MOD.LSHIFT) !== 0 && bits <= 128,
+      l_alt: (bits & KEY_MOD.LALT) !== 0 && bits <= 128,
+      l_meta: (bits & KEY_MOD.LMETA) !== 0 && bits <= 128,
+      r_control: (bits & KEY_MOD.RCTRL) !== 0 && bits <= 128,
+      r_shift: (bits & KEY_MOD.RSHIFT) !== 0 && bits <= 128,
+      r_alt: (bits & KEY_MOD.RALT) !== 0 && bits <= 128,
+      r_meta: (bits & KEY_MOD.RMETA) !== 0 && bits <= 128,
 
-      key: 0, // Normal keys
+      key: KEY_CODE.NONE, // Normal keys
     };
 
     recv.shift(); // ignore reserved byte
