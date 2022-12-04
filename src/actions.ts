@@ -27,8 +27,10 @@ const SINGLESTEP_MEDIUM_JOGDISTANCE = 1; // medium jog step in mm
 const SINGLESTEP_SMALL_JOGDISTANCE = 0.1; // small jog step in mm
 
 const JOG_INTERVAL = 150; // default: 150, period in ms at which the $J jogging commands are sent to the machine
-const JOG_JOGSPEED = 2000; // default: 2000, mm/minute
-const JOG_JOGSTEP = JOG_JOGSPEED * (JOG_INTERVAL / 60000); // mm/minute in terms of mm/interval
+const JOG_XY_JOGSPEED = 2000; // default: 2000, mm/minute
+const JOG_XY_JOGSTEP = JOG_XY_JOGSPEED * (JOG_INTERVAL / 60000); // mm/minute in terms of mm/interval
+const JOG_Z_JOGSPEED = 500; // default: 500, mm/minute
+const JOG_Z_JOGSTEP = JOG_Z_JOGSPEED * (JOG_INTERVAL / 60000); // mm/minute in terms of mm/interval
 
 //------------------------------------------------------------------------------
 // Represents the instantaneous state of the numpad.
@@ -152,7 +154,7 @@ export class Actions {
     // This isn't enabling motion yet, just selecting a speed in
     // case we select motion later.
     //------------------------------------------------------------
-    const jogVelocity = JOG_JOGSTEP;
+    const jogVelocity = JOG_XY_JOGSTEP;
     const jogDistance = distance / 10;
 
     //------------------------------------------------------------
@@ -161,8 +163,8 @@ export class Actions {
     // select motion later, so it doesn't matter if the key we're
     // testing is doing something else this round.
     //------------------------------------------------------------
-    const jogVelocityZ = JOG_JOGSPEED * 0.25;
-    const jogDistanceZ = JOG_JOGSTEP * 0.25;
+    const jogVelocityZ = JOG_Z_JOGSTEP;
+    const jogDistanceZ = distance / 10;
 
     switch (keyCode) {
       case KEY_CODE.KPMINUS: // -                  (z axis up)
